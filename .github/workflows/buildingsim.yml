@@ -1,0 +1,46 @@
+name: BuildSim
+
+on:
+  push:
+    paths:
+      - "buildingsim/**"
+      - "tutorials/buildsim.md"
+      - "tutorials/buildsim/**"
+      - ".github/workflows/buildingsim.yml"
+  pull_request:
+    paths:
+      - "buildingsim/**"
+      - "tutorials/buildsim.md"
+      - "tutorials/buildsim/**"
+      - ".github/workflows/buildingsim.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: buildingsim
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.x"
+          cache-dependency-path: buildingsim/go.sum
+      - name: Unit and integration tests
+        run: make test
+      - name: Race detector
+        run: make race
+      - name: API stress test
+        run: make stress STRESS_DURATION=5s
+      - name: Browser notification-storm test
+        shell: bash
+        run: |
+          browser="$(command -v google-chrome || command -v chromium || true)"
+          test -n "$browser"
+          BUILDSIM_CHROMIUM="$browser" make stress-ui
+      - name: Build container image
+        run: docker build -t buildingsim:test .

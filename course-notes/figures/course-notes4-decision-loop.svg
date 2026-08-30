@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1160 560" role="img" aria-labelledby="title description">
+  <title id="title">Bounded autonomous decision loop</title>
+  <desc id="description">Eight numbered stages flow from acquiring an observation through validation, state estimation, decision, authority and command validation, action, effect verification, and evidence recording. A feedback arrow returns to acquisition for the next observation.</desc>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#334155"/>
+    </marker>
+    <style>
+      .heading { font: 700 30px Inter, "Segoe UI", Arial, sans-serif; fill: #0f172a; }
+      .subheading { font: 400 17px Inter, "Segoe UI", Arial, sans-serif; fill: #475569; }
+      .step { font: 700 20px Inter, "Segoe UI", Arial, sans-serif; fill: #0f172a; text-anchor: middle; }
+      .number { font: 700 15px Inter, "Segoe UI", Arial, sans-serif; fill: #ffffff; text-anchor: middle; dominant-baseline: central; }
+      .flow-label { font: 600 16px Inter, "Segoe UI", Arial, sans-serif; fill: #475569; text-anchor: middle; }
+      .connector { fill: none; stroke: #334155; stroke-width: 3; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect x="1" y="1" width="1158" height="558" rx="22" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="35" y="46" class="heading">Bounded decision loop</text>
+  <text x="35" y="74" class="subheading">Validation and authority remain explicit, regardless of the decision mechanism.</text>
+
+  <path d="M275 155 H313" class="connector"/>
+  <path d="M555 155 H593" class="connector"/>
+  <path d="M835 155 H873" class="connector"/>
+
+  <g>
+    <rect x="35" y="105" width="240" height="100" rx="16" fill="#e0f2fe" stroke="#0284c7" stroke-width="2"/>
+    <circle cx="63" cy="132" r="15" fill="#0369a1"/>
+    <text x="63" y="132" class="number">1</text>
+    <text x="155" y="164" class="step">Acquire</text>
+  </g>
+
+  <g>
+    <rect x="315" y="105" width="240" height="100" rx="16" fill="#e0f2fe" stroke="#0284c7" stroke-width="2"/>
+    <circle cx="343" cy="132" r="15" fill="#0369a1"/>
+    <text x="343" y="132" class="number">2</text>
+    <text x="435" y="147" class="step">
+      <tspan x="435">Validate</tspan>
+      <tspan x="435" dy="25">observation</tspan>
+    </text>
+  </g>
+
+  <g>
+    <rect x="595" y="105" width="240" height="100" rx="16" fill="#f3e8ff" stroke="#9333ea" stroke-width="2"/>
+    <circle cx="623" cy="132" r="15" fill="#7e22ce"/>
+    <text x="623" y="132" class="number">3</text>
+    <text x="715" y="147" class="step">
+      <tspan x="715">Estimate</tspan>
+      <tspan x="715" dy="25">state</tspan>
+    </text>
+  </g>
+
+  <g>
+    <rect x="875" y="105" width="240" height="100" rx="16" fill="#f3e8ff" stroke="#9333ea" stroke-width="2"/>
+    <circle cx="903" cy="132" r="15" fill="#7e22ce"/>
+    <text x="903" y="132" class="number">4</text>
+    <text x="995" y="147" class="step">
+      <tspan x="995">Decide or</tspan>
+      <tspan x="995" dy="25">propose</tspan>
+    </text>
+  </g>
+
+  <path d="M995 207 V260 H155 V313" class="connector"/>
+  <rect x="455" y="244" width="290" height="31" rx="15" fill="#ffffff"/>
+  <text x="600" y="265" class="flow-label">proposal enters guarded action path</text>
+
+  <path d="M275 365 H313" class="connector"/>
+  <path d="M555 365 H593" class="connector"/>
+  <path d="M835 365 H873" class="connector"/>
+
+  <g>
+    <rect x="35" y="315" width="240" height="100" rx="16" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+    <circle cx="63" cy="342" r="15" fill="#b45309"/>
+    <text x="63" y="342" class="number">5</text>
+    <text x="155" y="337" class="step">
+      <tspan x="155">Validate</tspan>
+      <tspan x="155" dy="24">authority and</tspan>
+      <tspan x="155" dy="24">command</tspan>
+    </text>
+  </g>
+
+  <g>
+    <rect x="315" y="315" width="240" height="100" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+    <circle cx="343" cy="342" r="15" fill="#15803d"/>
+    <text x="343" y="342" class="number">6</text>
+    <text x="435" y="374" class="step">Act</text>
+  </g>
+
+  <g>
+    <rect x="595" y="315" width="240" height="100" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+    <circle cx="623" cy="342" r="15" fill="#15803d"/>
+    <text x="623" y="342" class="number">7</text>
+    <text x="715" y="357" class="step">
+      <tspan x="715">Verify</tspan>
+      <tspan x="715" dy="25">effect</tspan>
+    </text>
+  </g>
+
+  <g>
+    <rect x="875" y="315" width="240" height="100" rx="16" fill="#e2e8f0" stroke="#64748b" stroke-width="2"/>
+    <circle cx="903" cy="342" r="15" fill="#475569"/>
+    <text x="903" y="342" class="number">8</text>
+    <text x="995" y="357" class="step">
+      <tspan x="995">Record</tspan>
+      <tspan x="995" dy="25">evidence</tspan>
+    </text>
+  </g>
+
+  <path d="M995 417 V500 H18 V155 H33" class="connector"/>
+  <rect x="430" y="484" width="300" height="31" rx="15" fill="#ffffff"/>
+  <text x="580" y="505" class="flow-label">next observation closes the loop</text>
+</svg>

@@ -1,0 +1,44 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="cn1-fig09" name="cn1-fig09">
+    <mxGraphModel dx="1000" dy="600" grid="0" page="1" pageScale="1" pageWidth="1060" pageHeight="500" math="0" shadow="0" background="#FFFFFF">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="One feedback cycle in the simulated environment" style="text;html=1;align=center;fontColor=#14334D;fontSize=17;fontStyle=1;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="130" y="20" width="800" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="s1" value="1 — PHYSICAL MODEL UPDATES&#10;simulated observation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#4A7298;strokeWidth=2;fontColor=#5E7B94;fontSize=13;fontFamily=Helvetica;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="60" y="80" width="280" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="s2" value="2 — BUILDSIM STORES STATE&#10;value + timestamp" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F0F7;strokeColor=#4A7298;strokeWidth=2;fontColor=#14334D;fontSize=13;fontFamily=Helvetica;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="400" y="80" width="280" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="s3" value="3 — CONTROLLER EVALUATES&#10;observation + policy" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F0F7;strokeColor=#4A7298;strokeWidth=2;fontColor=#14334D;fontSize=13;fontFamily=Helvetica;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="740" y="80" width="280" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="s4" value="4 — COMMAND IS VALIDATED&#10;allowed simulated state" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF8247;strokeColor=none;fontColor=#032040;fontSize=13;fontStyle=1;fontFamily=Helvetica;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="740" y="200" width="280" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="s5" value="5 — BUILDSIM RECORDS&#10;actuator state only" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#4A7298;strokeWidth=2;fontColor=#5E7B94;fontSize=13;fontFamily=Helvetica;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="740" y="320" width="280" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="s6" value="6 — PHYSICAL MODEL READS ACTUATOR&#10;computes next state" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F0F7;strokeColor=#4A7298;strokeWidth=2;fontColor=#14334D;fontSize=13;fontFamily=Helvetica;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="400" y="320" width="280" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="s7" value="7 — OUTCOME IS RECORDED&#10;expected versus observed" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F0F7;strokeColor=#4A7298;strokeWidth=2;fontColor=#14334D;fontSize=13;fontFamily=Helvetica;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="60" y="320" width="280" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="a1" style="endArrow=block;html=1;strokeColor=#FF8247;strokeWidth=3;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="s1" target="s2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="a2" style="endArrow=block;html=1;strokeColor=#FF8247;strokeWidth=3;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="s2" target="s3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="a3" style="endArrow=block;html=1;strokeColor=#FF8247;strokeWidth=3;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="s3" target="s4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="a4" style="endArrow=block;html=1;strokeColor=#FF8247;strokeWidth=3;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="s4" target="s5"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="a5" style="endArrow=block;html=1;strokeColor=#FF8247;strokeWidth=3;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="s5" target="s6"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="a6" style="endArrow=block;html=1;strokeColor=#FF8247;strokeWidth=3;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="s6" target="s7"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="a7" value="8 — repeat according to the sampling policy" style="endArrow=block;html=1;strokeColor=#FF8247;strokeWidth=3;dashed=1;fontColor=#3D6280;fontSize=13;fontStyle=2;fontFamily=Helvetica;labelBackgroundColor=none;exitX=0.5;exitY=0;entryX=0.5;entryY=1;" edge="1" parent="1" source="s7" target="s1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cap" value="Monitoring and batch components may sit outside this feedback path." style="text;html=1;align=center;fontColor=#14334D;fontSize=15;fontStyle=2;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="230" y="430" width="600" height="28" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,27 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="cn4-fig03" name="cn4-fig03">
+    <mxGraphModel dx="1000" dy="600" grid="0" page="1" pageScale="1" pageWidth="1000" pageHeight="440" math="0" shadow="0" background="#FFFFFF">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="Tool-mediated access with an independent write boundary" style="text;html=1;align=center;fontColor=#14334D;fontSize=17;fontStyle=1;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="100" y="18" width="800" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="t1" value="BuildSim state&#10;read identified observations" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F0F7;strokeColor=#4A7298;strokeWidth=2;fontColor=#14334D;fontSize=13;fontFamily=Helvetica;arcSize=10;" vertex="1" parent="1"><mxGeometry x="30" y="80" width="215" height="80" as="geometry"/></mxCell>
+        <mxCell id="t2" value="Optional history&#10;bounded read query" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F0F7;strokeColor=#4A7298;strokeWidth=2;fontColor=#14334D;fontSize=13;fontFamily=Helvetica;arcSize=10;" vertex="1" parent="1"><mxGeometry x="265" y="80" width="215" height="80" as="geometry"/></mxCell>
+        <mxCell id="t3" value="Command gateway&#10;validate proposal&#10;apply only if accepted" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F0F7;strokeColor=#4A7298;strokeWidth=2;fontColor=#14334D;fontSize=13;fontFamily=Helvetica;arcSize=10;" vertex="1" parent="1"><mxGeometry x="500" y="80" width="215" height="80" as="geometry"/></mxCell>
+        <mxCell id="t4" value="Policy source&#10;read allowed states" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F0F7;strokeColor=#4A7298;strokeWidth=2;fontColor=#14334D;fontSize=13;fontFamily=Helvetica;arcSize=10;" vertex="1" parent="1"><mxGeometry x="735" y="80" width="215" height="80" as="geometry"/></mxCell>
+        <mxCell id="agent" value="OPTIONAL DECISION COMPONENT — reads state and emits a structured proposal" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF8247;strokeColor=none;fontColor=#032040;fontSize=15;fontStyle=1;fontFamily=Helvetica;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="30" y="280" width="920" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="e1" value="call / result" style="endArrow=block;startArrow=block;html=1;strokeColor=#4A7298;strokeWidth=2;fontColor=#3D6280;fontSize=12;fontStyle=2;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;exitX=0.1168;exitY=0;entryX=0.5;entryY=1;" edge="1" parent="1" source="agent" target="t1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" value="call / result" style="endArrow=block;startArrow=block;html=1;strokeColor=#4A7298;strokeWidth=2;fontColor=#3D6280;fontSize=12;fontStyle=2;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;exitX=0.3723;exitY=0;entryX=0.5;entryY=1;" edge="1" parent="1" source="agent" target="t2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e3" value="call / result" style="endArrow=block;startArrow=block;html=1;strokeColor=#4A7298;strokeWidth=2;fontColor=#3D6280;fontSize=12;fontStyle=2;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;exitX=0.6277;exitY=0;entryX=0.5;entryY=1;" edge="1" parent="1" source="agent" target="t3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e4" value="call / result" style="endArrow=block;startArrow=block;html=1;strokeColor=#4A7298;strokeWidth=2;fontColor=#3D6280;fontSize=12;fontStyle=2;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;exitX=0.8832;exitY=0;entryX=0.5;entryY=1;" edge="1" parent="1" source="agent" target="t4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cap" value="Typed syntax constrains shape; domain validity, authority, freshness, and safety require independent checks." style="text;html=1;align=center;fontColor=#14334D;fontSize=15;fontStyle=2;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="100" y="390" width="800" height="28" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

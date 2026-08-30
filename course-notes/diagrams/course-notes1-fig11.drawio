@@ -1,0 +1,58 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="cn1-fig11" name="cn1-fig11">
+    <mxGraphModel dx="1000" dy="600" grid="0" page="1" pageScale="1" pageWidth="1140" pageHeight="560" math="0" shadow="0" background="#FFFFFF">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="Structural application view (C4 Level 2) — one possible container decomposition" style="text;html=1;align=center;fontColor=#14334D;fontSize=17;fontStyle=1;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="120" y="18" width="900" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="boundary" value="STUDENT-BUILT EXPERIMENT SYSTEM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#4A7298;dashed=1;strokeWidth=2;verticalAlign=top;align=left;fontColor=#3D6280;fontSize=14;fontStyle=1;fontFamily=Helvetica;spacingTop=8;spacingLeft=12;arcSize=4;" vertex="1" parent="1">
+          <mxGeometry x="40" y="60" width="800" height="440" as="geometry"/>
+        </mxCell>
+        <mxCell id="physical-model" value="&lt;b&gt;Physical model&lt;/b&gt;&#10;&lt;font color=&quot;#5E7B94&quot;&gt;[Go application]&lt;/font&gt;&#10;computes simulated dynamics" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F0F7;strokeColor=#4A7298;strokeWidth=2;fontColor=#14334D;fontSize=13;fontFamily=Helvetica;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="80" y="100" width="220" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="controller" value="&lt;b&gt;Controller&lt;/b&gt;&#10;&lt;font color=&quot;#5E7B94&quot;&gt;[Go application]&lt;/font&gt;&#10;observation, policy, command validation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F0F7;strokeColor=#4A7298;strokeWidth=2;fontColor=#14334D;fontSize=13;fontFamily=Helvetica;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="80" y="230" width="220" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="harness" value="&lt;b&gt;Experiment harness&lt;/b&gt;&#10;&lt;font color=&quot;#5E7B94&quot;&gt;[Go application]&lt;/font&gt;&#10;runs scenarios and measures outcomes" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F0F7;strokeColor=#4A7298;strokeWidth=2;fontColor=#14334D;fontSize=13;fontFamily=Helvetica;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="80" y="370" width="220" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="estimator" value="&lt;b&gt;Optional estimator&lt;/b&gt;&#10;&lt;font color=&quot;#5E7B94&quot;&gt;[application, if separately deployed]&lt;/font&gt;&#10;returns bounded statistical evidence" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#4A7298;strokeWidth=2;dashed=1;fontColor=#3D6280;fontSize=13;fontFamily=Helvetica;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="400" y="230" width="260" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="experiment-log" value="&lt;b&gt;Experiment log&lt;/b&gt;&#10;&lt;font color=&quot;#5E7B94&quot;&gt;[file or data store]&lt;/font&gt;&#10;inputs, decisions, validation, outcomes" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F0F7;strokeColor=#4A7298;strokeWidth=2;fontColor=#14334D;fontSize=13;fontFamily=Helvetica;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="400" y="370" width="260" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="buildsim" value="&lt;b&gt;BuildSim server&lt;/b&gt;&#10;&lt;font color=&quot;#5E7B94&quot;&gt;[external, provided system]&lt;/font&gt;&#10;current state + browser viewer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF8247;strokeColor=none;fontColor=#032040;fontSize=13;fontFamily=Helvetica;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="900" y="150" width="210" height="110" as="geometry"/>
+        </mxCell>
+        <mxCell id="physical-buildsim" value="PUT sensor value / GET actuator state" style="endArrow=block;startArrow=block;html=1;strokeColor=#4A7298;strokeWidth=2;fontColor=#3D6280;fontSize=12;fontStyle=2;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.25;" edge="1" parent="1" source="physical-model" target="buildsim">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="760" y="140"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="controller-buildsim" value="GET sensor values / PUT validated actuator state" style="endArrow=block;startArrow=block;html=1;strokeColor=#FF8247;strokeWidth=3;fontColor=#3D6280;fontSize=12;fontStyle=2;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.75;" edge="1" parent="1" source="controller" target="buildsim">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="340" y="335"/><mxPoint x="850" y="335"/><mxPoint x="850" y="233"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="harness-physical" value="" style="endArrow=block;html=1;strokeColor=#4A7298;strokeWidth=2;fontColor=#3D6280;fontSize=12;fontStyle=2;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0;exitY=0.35;entryX=0;entryY=0.65;" edge="1" parent="1" source="harness" target="physical-model">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="55" y="398"/><mxPoint x="55" y="152"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="harness-controller" value="start / observe" style="endArrow=block;html=1;strokeColor=#4A7298;strokeWidth=2;fontColor=#3D6280;fontSize=12;fontStyle=2;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;exitX=0.75;exitY=0;entryX=0.75;entryY=1;" edge="1" parent="1" source="harness" target="controller">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="estimator-controller" value="" style="endArrow=block;html=1;strokeColor=#4A7298;strokeWidth=2;dashed=1;fontColor=#3D6280;fontSize=12;fontStyle=2;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="estimator" target="controller">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="controller-log" value="" style="endArrow=block;html=1;strokeColor=#4A7298;strokeWidth=2;fontColor=#3D6280;fontSize=12;fontStyle=2;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=1;exitY=0.75;entryX=0;entryY=0.25;" edge="1" parent="1" source="controller" target="experiment-log">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="355" y="290"/><mxPoint x="355" y="390"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="harness-log" value="" style="endArrow=block;html=1;strokeColor=#4A7298;strokeWidth=2;fontColor=#3D6280;fontSize=12;fontStyle=2;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.65;entryX=0;entryY=0.65;" edge="1" parent="1" source="harness" target="experiment-log">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="caption" value="C4 containers are applications or data stores with runtime responsibilities; they do not imply Docker containers." style="text;html=1;align=center;fontColor=#14334D;fontSize=15;fontStyle=2;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="140" y="515" width="860" height="28" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

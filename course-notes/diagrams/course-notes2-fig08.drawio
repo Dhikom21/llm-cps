@@ -1,0 +1,28 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="cn2-fig08" name="cn2-fig08">
+    <mxGraphModel dx="1000" dy="600" grid="0" page="1" pageScale="1" pageWidth="1000" pageHeight="430" math="0" shadow="0" background="#FFFFFF">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="One possible allocation for a learned model" style="text;html=1;align=center;fontColor=#14334D;fontSize=17;fontStyle=1;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="100" y="18" width="800" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge" value="LOCAL&#10;&#10;validate observations&#10;&#10;optional model inference&#10;&#10;deterministic command policy&#10;&#10;retention by requirement" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F0F7;strokeColor=#FF8247;strokeWidth=2;fontColor=#14334D;fontSize=14;fontFamily=Helvetica;verticalAlign=top;spacingTop=12;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="50" y="70" width="300" height="240" as="geometry"/>
+        </mxCell>
+        <mxCell id="cloud" value="OPTIONAL SHARED COMPUTE&#10;&#10;governed data storage&#10;&#10;model training and evaluation&#10;&#10;cross-site analysis&#10;&#10;version registry" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F0F7;strokeColor=#4A7298;strokeWidth=2;fontColor=#14334D;fontSize=14;fontFamily=Helvetica;verticalAlign=top;spacingTop=12;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="650" y="70" width="300" height="240" as="geometry"/>
+        </mxCell>
+        <mxCell id="f1" value="fresh data,&#10;shipped periodically" style="endArrow=block;html=1;strokeColor=#4A7298;strokeWidth=3;fontColor=#5E7B94;fontSize=14;fontStyle=2;fontFamily=Helvetica;labelBackgroundColor=none;exitX=1;exitY=0.3;entryX=0;entryY=0.3;" edge="1" parent="1" source="edge" target="cloud">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="0" y="-30" as="offset"/></mxGeometry>
+        </mxCell>
+        <mxCell id="f2" value="updated model,&#10;pushed back down" style="endArrow=block;html=1;strokeColor=#FF8247;strokeWidth=3;dashed=1;fontColor=#3D6280;fontSize=14;fontStyle=2;fontFamily=Helvetica;labelBackgroundColor=none;exitX=0;exitY=0.7;entryX=1;entryY=0.7;" edge="1" parent="1" source="cloud" target="edge">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="0" y="32" as="offset"/></mxGeometry>
+        </mxCell>
+        <mxCell id="cap" value="Allocation requires measured latency, governance, evaluation, versioning, and rollback." style="text;html=1;align=center;fontColor=#14334D;fontSize=15;fontStyle=2;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="100" y="360" width="800" height="28" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
