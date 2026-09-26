@@ -1,0 +1,27 @@
+# LibreChat config: your vLLM Gemma as an endpoint + the Level 7 MCP tools.
+# (If LibreChat warns about the version, bump it to the value in its current docs.)
+version: 1.2.8
+cache: true
+
+# Allow LibreChat to reach the MCP server on the host (SSRF-protection exemption).
+mcpSettings:
+  allowedAddresses:
+    - "host.docker.internal:8009"
+
+endpoints:
+  custom:
+    - name: "Gemma-vLLM"
+      apiKey: "not-needed"
+      baseURL: "http://carbon.eislab.se:8000/v1"
+      models:
+        default: ["google/gemma-4-E4B-it"]
+        fetch: false
+      titleConvo: true
+      titleModel: "google/gemma-4-E4B-it"
+      modelDisplayLabel: "Gemma (vLLM)"
+
+# The guarded Level 7 tools, served over SSE by mcp_level7_server.py on the host.
+mcpServers:
+  buildsim-l7:
+    type: streamable-http
+    url: "http://host.docker.internal:8009/mcp"

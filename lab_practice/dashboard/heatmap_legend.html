@@ -1,0 +1,49 @@
+<!doctype html>
+<!--
+  Legend for the BuildSim temperature heatmap (heatmap_buildsim.py).
+  BuildSim's 3D viewer can't show a legend itself, so open this page beside it.
+  Colours/thresholds here match the BANDS in heatmap_buildsim.py -- keep them in sync.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Heatmap legend</title>
+<style>
+  :root { --bg:#0f1720; --card:#161f2b; --text:#e6edf3; --muted:#9aa7b4; }
+  html,body { margin:0; height:100%; background:var(--bg);
+              font-family: ui-sans-serif, system-ui, Segoe UI, Roboto, sans-serif; }
+  .wrap { display:flex; align-items:center; justify-content:center; height:100%; }
+  .card { background:var(--card); border-radius:14px; padding:22px 26px;
+          box-shadow:0 6px 24px rgba(0,0,0,.4); min-width:260px; }
+  h1 { color:var(--text); font-size:17px; margin:0 0 4px; }
+  .sub { color:var(--muted); font-size:12px; margin:0 0 16px; }
+  .row { display:flex; align-items:center; gap:12px; padding:7px 0; }
+  .sw { width:26px; height:26px; border-radius:6px; flex:0 0 auto;
+        box-shadow:inset 0 0 0 1px rgba(255,255,255,.15); }
+  .lab { color:var(--text); font-size:14px; }
+  .rng { color:var(--muted); font-size:12px; margin-left:auto; font-variant-numeric:tabular-nums; }
+  .foot { color:var(--muted); font-size:11px; margin-top:14px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Room temperature</h1>
+      <p class="sub">colour = latest temperature per room</p>
+
+      <div class="row"><span class="sw" style="background:#2166ac"></span>
+        <span class="lab">Cold</span><span class="rng">&lt; 18 &deg;C</span></div>
+      <div class="row"><span class="sw" style="background:#67a9cf"></span>
+        <span class="lab">Cool</span><span class="rng">18 &ndash; 20 &deg;C</span></div>
+      <div class="row"><span class="sw" style="background:#1a9850"></span>
+        <span class="lab">Comfort</span><span class="rng">20 &ndash; 23 &deg;C</span></div>
+      <div class="row"><span class="sw" style="background:#fdae61"></span>
+        <span class="lab">Warm</span><span class="rng">23 &ndash; 26 &deg;C</span></div>
+      <div class="row"><span class="sw" style="background:#d73027"></span>
+        <span class="lab">Hot</span><span class="rng">&gt; 26 &deg;C</span></div>
+
+      <p class="foot">BuildSim CPS &mdash; A-wing, level 0</p>
+    </div>
+  </div>
+</body>
+</html>

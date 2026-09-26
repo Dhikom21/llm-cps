@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 860" font-family="Segoe UI, Arial, sans-serif">
+  <style>
+    .card{fill:#fff;stroke:#c7ced6;stroke-width:1.5;}
+    .h{font-weight:700;}
+    .m{font-size:13px;fill:#333;}
+    .n{font-size:11.5px;fill:#666;}
+  </style>
+
+  <text x="600" y="34" text-anchor="middle" font-size="21" font-weight="700" fill="#1A237E">CPS Wiring — Raspberry Pi 5 (BCM pin numbers)</text>
+  <text x="600" y="55" text-anchor="middle" font-size="13" fill="#555">Each component's terminal → the Pi pin it connects to. Colours: power / ground / signal.</text>
+
+  <!-- legend -->
+  <g transform="translate(360,72)">
+    <circle cx="0" cy="6" r="6" fill="#E53935"/><text x="12" y="10" class="n">5 V power</text>
+    <circle cx="110" cy="6" r="6" fill="#FB8C00"/><text x="122" y="10" class="n">3.3 V power</text>
+    <circle cx="235" cy="6" r="6" fill="#333"/><text x="247" y="10" class="n">GND</text>
+    <circle cx="315" cy="6" r="6" fill="#1E88E5"/><text x="327" y="10" class="n">signal</text>
+    <circle cx="400" cy="6" r="6" fill="#8E24AA"/><text x="412" y="10" class="n">I²C</text>
+  </g>
+
+  <!-- ===================== Relay ===================== -->
+  <rect class="card" x="40" y="110" width="540" height="150" rx="10"/>
+  <text x="60" y="136" class="h" font-size="16" fill="#2E7D32">Relay (Grove) — Scenario A heater actuator</text>
+  <circle cx="66" cy="164" r="6" fill="#1E88E5"/><text x="80" y="169" class="m"><tspan font-weight="700">SIG</tspan>  →  GPIO17  (physical pin 11)</text>
+  <circle cx="66" cy="190" r="6" fill="#E53935"/><text x="80" y="195" class="m"><tspan font-weight="700">VCC</tspan>  →  5 V  (pin 2)</text>
+  <circle cx="66" cy="216" r="6" fill="#333"/><text x="80" y="221" class="m"><tspan font-weight="700">GND</tspan>  →  GND  (pin 6)</text>
+  <text x="66" y="246" class="n">Load terminals (COM / NO): switch the heat source — a lamp/element with its own supply.</text>
+
+  <!-- ===================== DS18B20 ===================== -->
+  <rect class="card" x="40" y="286" width="540" height="150" rx="10"/>
+  <text x="60" y="312" class="h" font-size="16" fill="#2E7D32">DS18B20 — temperature sensor (1-Wire)</text>
+  <circle cx="66" cy="340" r="6" fill="#1E88E5"/><text x="80" y="345" class="m"><tspan font-weight="700">DATA</tspan>  →  GPIO4  (pin 7)</text>
+  <circle cx="66" cy="366" r="6" fill="#FB8C00"/><text x="80" y="371" class="m"><tspan font-weight="700">VDD</tspan>   →  3.3 V  (pin 1)</text>
+  <circle cx="66" cy="392" r="6" fill="#333"/><text x="80" y="397" class="m"><tspan font-weight="700">GND</tspan>   →  GND  (pin 9)</text>
+  <text x="66" y="422" class="n" fill="#c62828"><tspan font-weight="700">Required:</tspan> 4.7 kΩ resistor between DATA and 3.3 V (pull-up). Enable 1-Wire in raspi-config.</text>
+
+  <!-- ===================== ADS1115 + smoke ===================== -->
+  <rect class="card" x="620" y="110" width="540" height="200" rx="10"/>
+  <text x="640" y="136" class="h" font-size="16" fill="#00838f">ADS1115 (ADC) + SEN0570 smoke — Scenario B detection</text>
+  <text x="640" y="160" class="n" font-weight="700">ADS1115 → Pi:</text>
+  <circle cx="648" cy="182" r="6" fill="#8E24AA"/><text x="662" y="187" class="m"><tspan font-weight="700">SDA</tspan>  →  GPIO2  (pin 3)</text>
+  <circle cx="648" cy="208" r="6" fill="#8E24AA"/><text x="662" y="213" class="m"><tspan font-weight="700">SCL</tspan>  →  GPIO3  (pin 5)</text>
+  <circle cx="648" cy="234" r="6" fill="#FB8C00"/><text x="662" y="239" class="m"><tspan font-weight="700">VDD</tspan>  →  3.3 V   ·   <tspan font-weight="700" fill="#333">GND → GND</tspan></text>
+  <text x="640" y="266" class="n" font-weight="700">Smoke sensor → ADS1115:</text>
+  <text x="662" y="286" class="m"><tspan font-weight="700">A (analog out)</tspan> → ADS <tspan font-weight="700">A0</tspan>   ·   VCC → 3.3 V   ·   GND → GND</text>
+  <text x="640" y="304" class="n" fill="#c62828">Enable I²C in raspi-config. Pi has no analog input; the ADS1115 reads the smoke voltage.</text>
+
+  <!-- ===================== Buzzer + transistor ===================== -->
+  <rect class="card" x="620" y="336" width="540" height="200" rx="10"/>
+  <text x="640" y="362" class="h" font-size="16" fill="#00838f">Active buzzer + NPN transistor — Scenario B alarm</text>
+  <circle cx="648" cy="390" r="6" fill="#1E88E5"/><text x="662" y="395" class="m"><tspan font-weight="700">GPIO27</tspan> (pin 13)  →  1 kΩ  →  transistor <tspan font-weight="700">Base</tspan></text>
+  <circle cx="648" cy="416" r="6" fill="#E53935"/><text x="662" y="421" class="m">Buzzer <tspan font-weight="700">+</tspan>  →  5 V</text>
+  <circle cx="648" cy="442" r="6" fill="#333"/><text x="662" y="447" class="m">Buzzer <tspan font-weight="700">−</tspan>  →  transistor <tspan font-weight="700">Collector</tspan></text>
+  <circle cx="648" cy="468" r="6" fill="#333"/><text x="662" y="473" class="m">transistor <tspan font-weight="700">Emitter</tspan>  →  GND</text>
+  <text x="640" y="502" class="n">The GPIO switches the transistor, which passes the buzzer's current (a GPIO can't source it).</text>
+  <text x="640" y="522" class="n">NPN e.g. 2N2222 / BC547. Flat side facing you: pins are E – B – C (left to right).</text>
+
+  <!-- ===================== pin reference ===================== -->
+  <rect x="40" y="566" width="1120" height="120" rx="10" fill="#f4f7fb" stroke="#c7ced6"/>
+  <text x="60" y="592" class="h" font-size="15" fill="#1A237E">Pi pins used (BCM name / physical pin)</text>
+  <text x="60" y="616" class="m">3.3 V = pin 1   ·   5 V = pin 2   ·   GND = pins 6 / 9 / 14 / 20 / …   ·   GPIO2 (SDA) = pin 3   ·   GPIO3 (SCL) = pin 5</text>
+  <text x="60" y="640" class="m">GPIO4 (1-Wire) = pin 7   ·   GPIO17 = pin 11   ·   GPIO27 = pin 13</text>
+  <text x="60" y="668" class="n">These pin numbers match HEATER_PIN=17 and BUZZER_PIN=27 in real_hardware.py. Change the constants if you use different pins.</text>
+
+  <!-- ===================== flow reminder ===================== -->
+  <rect x="40" y="706" width="1120" height="120" rx="10" fill="#fff8e1" stroke="#ffe8a3"/>
+  <text x="60" y="732" class="h" font-size="15" fill="#8a6100">How it drives your code</text>
+  <text x="60" y="756" class="m">real_hardware.py: set_heater → GPIO17 (relay) · set_buzzer → GPIO27 (transistor→buzzer) · read_temperature → GPIO4 (DS18B20) · read_smoke → ADS1115.</text>
+  <text x="60" y="780" class="m">The edge agent calls those same method names whether it imports fake_hardware (simulation) or real_hardware (the Pi).</text>
+  <text x="60" y="804" class="n">Setup once: sudo raspi-config → enable 1-Wire and I²C · pip install gpiozero w1thermsensor adafruit-circuitpython-ads1x15</text>
+</svg>

@@ -1,0 +1,16 @@
+Prerequisites:
+    BuildSim + browser tab at http://localhost:9090
+    docker compose up -d            # TimescaleDB (+ Mosquitto)
+
+
+
+cd /mnt/c/Users/dhikom/Embedded/D7065E/lab_practice
+source venv/bin/activate
+
+python level4_consumer.py              # store readings
+
+python level4_multi_room_sensor.py     # 3 rooms: A109, A110, A111 (each with heater)
+
+python heatmap_buildsim.py             # colours them
+
+pass curl cmd when you are the reasoner.

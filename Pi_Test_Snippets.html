@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Raspberry Pi 5 — Test Snippets (D7065E)</title>
+<style>
+  :root{
+    --bg:#f7f9fb; --card:#ffffff; --ink:#1f2933; --muted:#5b6b7a;
+    --line:#dde4ea; --accent:#1a5fb4; --accent-soft:#e8f0fb;
+    --code-bg:#1e242c; --code-ink:#e6edf3; --ok:#1b7f4c; --warn:#b26a00;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:15px/1.6 "Segoe UI",Roboto,Arial,sans-serif;}
+  header{background:linear-gradient(135deg,#123a6b,#1a5fb4);color:#fff;padding:34px 28px 28px;}
+  header h1{margin:0 0 6px;font-size:26px;letter-spacing:.2px}
+  header p{margin:0;opacity:.88;font-size:14px;max-width:760px}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 20px 80px}
+  nav{background:var(--card);border:1px solid var(--line);border-radius:10px;
+      padding:16px 20px;margin:-22px 0 28px;box-shadow:0 2px 10px rgba(20,40,70,.07)}
+  nav b{display:block;font-size:12px;letter-spacing:.9px;text-transform:uppercase;
+        color:var(--muted);margin-bottom:8px}
+  nav a{display:inline-block;margin:3px 14px 3px 0;color:var(--accent);
+        text-decoration:none;font-size:14px}
+  nav a:hover{text-decoration:underline}
+  section{background:var(--card);border:1px solid var(--line);border-radius:10px;
+          padding:22px 24px 8px;margin-bottom:22px;box-shadow:0 1px 4px rgba(20,40,70,.05)}
+  h2{margin:0 0 4px;font-size:19px;color:#123a6b;
+     border-bottom:2px solid var(--accent-soft);padding-bottom:8px}
+  .stage{display:inline-block;background:var(--accent-soft);color:var(--accent);
+         font-size:11px;font-weight:700;letter-spacing:.6px;border-radius:20px;
+         padding:3px 10px;margin-bottom:12px;text-transform:uppercase}
+  h3{margin:22px 0 4px;font-size:15px;color:#22303d}
+  p.note{margin:4px 0 8px;color:var(--muted);font-size:14px}
+  .block{position:relative;margin:8px 0 16px}
+  .block .lang{position:absolute;top:8px;right:54px;font-size:10.5px;letter-spacing:.8px;
+       text-transform:uppercase;color:#9fb0c0}
+  pre{background:var(--code-bg);color:var(--code-ink);border-radius:8px;
+      padding:16px 18px;overflow-x:auto;margin:0;
+      font:13px/1.55 "Cascadia Code",Consolas,"Courier New",monospace;white-space:pre}
+  button.copy{position:absolute;top:6px;right:8px;background:#33404e;color:#cfe0f0;
+      border:0;border-radius:5px;padding:4px 9px;font-size:11px;cursor:pointer}
+  button.copy:hover{background:#44soft;background:#465566}
+  .out{border-left:3px solid var(--ok);background:#f3faf6;padding:8px 14px;
+       margin:-8px 0 16px;border-radius:0 6px 6px 0;font-size:13.5px;color:#2c4a3b}
+  .out b{color:var(--ok)}
+  .tip{border-left:3px solid var(--warn);background:#fff8ed;padding:8px 14px;
+       margin:-8px 0 16px;border-radius:0 6px 6px 0;font-size:13.5px;color:#6b4a12}
+  table{border-collapse:collapse;width:100%;margin:10px 0 18px;font-size:14px}
+  th,td{border:1px solid var(--line);padding:7px 10px;text-align:left}
+  th{background:#f0f4f8;color:#22303d;font-weight:600}
+  code{background:#eef2f6;border-radius:4px;padding:1px 5px;
+       font:12.5px "Cascadia Code",Consolas,monospace}
+  footer{text-align:center;color:var(--muted);font-size:13px;padding:10px 0 0}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Raspberry Pi 5 — Test Snippets</h1>
+  <p>Every small piece of Python and shell used to bring the hardware up for the D7065E
+     autonomous CPS project, in the order it was actually run. Each block is standalone —
+     paste it into the Pi's terminal and it works on its own.</p>
+</header>
+
+<div class="wrap">
+
+<nav>
+  <b>Jump to</b>
+  <a href="#s0">0 · Pi basics</a>
+  <a href="#s1">1 · Enable buses</a>
+  <a href="#s2">2 · Network / SSH</a>
+  <a href="#s3">3 · DS18B20</a>
+  <a href="#s4">4 · Relay</a>
+  <a href="#s5">5 · Buzzer</a>
+  <a href="#s6">6 · ADS1115 + smoke</a>
+  <a href="#s7">7 · Closed loop</a>
+  <a href="#s8">8 · Project code</a>
+  <a href="#s9">9 · Pin map</a>
+</nav>
+
+<!-- ===================================================== -->
+<section id="s0">
+  <h2>0 · Pi housekeeping</h2>
+  <div class="stage">any time</div>
+
+  <h3>Shut down / reboot cleanly</h3>
+  <p class="note">Never pull the USB-C power while the Pi is running — it can corrupt the SD card.
+     Always shut down first, then unplug. Power must be off before you change any wiring.</p>
+  <div class="block"><span class="lang">bash</span><button class="copy">copy</button>
+<pre>sudo shutdown -h now      # power off
+sudo reboot               # restart</pre></div>
+
+  <h3>Who and where am I?</h3>
+  <div class="block"><span class="lang">bash</span><button class="copy">copy</button>
+<pre>whoami            # dp
+hostname          # cps-pi
+hostname -I       # this Pi's IP address(es)
+uname -a          # kernel + architecture
+pwd               # current folder</pre></div>
+  <div class="tip">If <code>hostname -I</code> prints <b>nothing</b>, the Pi has no network at all —
+     it is not an SSH problem, it is a cable / Wi-Fi problem.</div>
+
+  <h3>Install the Python libraries the project needs</h3>
+  <div class="block"><span class="lang">bash</span><button class="copy">copy</button>
+<pre>sudo apt update
+sudo apt install -y python3-gpiozero python3-w1thermsensor i2c-tools
+pip install adafruit-circuitpython-ads1x15 --break-system-packages</pre></div>
+
+  <h3>Prove the libraries import</h3>
+  <p class="note">This was milestone M1. If it prints, the software side is ready and anything
+     that fails afterwards is wiring.</p>
+  <div class="block"><span class="lang">bash</span><button class="copy">copy</button>
+<pre>python3 -c "import gpiozero, w1thermsensor; print('libraries OK')"</pre></div>
+  <div class="out"><b>Expected:</b> <code>libraries OK</code></div>
+</section>
+
+<!-- ===================================================== -->
+<section id="s1">
+  <h2>1 · Enable the 1-Wire and I²C buses</h2>
+  <div class="stage">once, then reboot</div>
+
+  <p class="note">The GPIO pins are plain digital pins until you tell the firmware that pin 7
+     should speak 1-Wire and pins 3/5 should speak I²C. That switch lives in the boot config,
+     and <code>raspi-config</code> edits it for you.</p>
+
+  <div class="block"><span class="lang">bash</span><button class="copy">copy</button>
+<pre>sudo raspi-config nonint do_onewire 0     # 0 = enable
+sudo raspi-config nonint do_i2c 0
+sudo reboot</pre></div>
+
+  <h3>Verify it stuck</h3>
+  <div class="block"><span class="lang">bash</span><button class="copy">copy</button>
+<pre>grep -iE "w1|i2c" /boot/firmware/config.txt
+lsmod | grep -E "w1_gpio|w1_therm|i2c_dev"</pre></div>
+  <div class="out"><b>Expected in config.txt:</b> <code>dtoverlay=w1-gpio</code> and
+     <code>dtparam=i2c_arm=on</code></div>
+</section>
+
+<!-- ===================================================== -->
+<section id="s2">
+  <h2>2 · Network and SSH troubleshooting</h2>
+  <div class="stage">run on the laptop unless noted</div>
+
+  <p class="note">These are the commands that untangled the "SSH just hangs" problem. The
+     root cause turned out to be two machines answering to the same IP address.</p>
+
+  <h3>Find the Pi on the network — from Windows PowerShell</h3>
+  <div class="block"><span class="lang">powershell</span><button class="copy">copy</button>
+<pre>ping cps-pi.local
+arp -a                                    # list every IP+MAC the laptop has seen
+Test-NetConnection 192.168.1.45 -Port 22  # is the SSH port reachable?</pre></div>
+  <div class="tip">In <code>ping</code> output, if <b>SourceAddress equals RemoteAddress</b> and the
+     round-trip is 0 ms, you are pinging your own laptop, not the Pi.</div>
+
+  <h3>SSH in, with full diagnostics</h3>
+  <div class="block"><span class="lang">bash</span><button class="copy">copy</button>
+<pre>ssh dp@192.168.1.45
+ssh -v dp@192.168.1.45      # -v shows exactly where it stalls</pre></div>
+  <div class="tip"><code>Connection timed out during banner exchange</code> means the TCP port
+     opened but the SSH handshake never completed — classic sign of an <b>IP conflict</b>
+     (two devices holding the same address).</div>
+
+  <h3>Confirm the conflict — on the Pi, with a monitor attached</h3>
+  <div class="block"><span class="lang">bash</span><button class="copy">copy</button>
+<pre>hostname -I
+sudo journalctl -u ssh -n 30 --no-pager</pre></div>
+  <div class="out"><b>The smoking gun we saw:</b>
+     <code>timeout before authentication for connection from 192.168.1.44 to 192.168.1.45</code></div>
+
+  <h3>Path-MTU check (rules out fragmentation)</h3>
+  <div class="block"><span class="lang">bash</span><button class="copy">copy</button>
+<pre>ping -M do -s 1400 192.168.1.45   # large packet, do-not-fragment</pre></div>
+
+  <h3>Make WSL able to reach the Pi</h3>
+  <p class="note">By default WSL2 sits behind its own NAT and cannot see your LAN.
+     Create <code>C:\Users\dhikom\.wslconfig</code> on Windows with the lines below, then
+     <code>wsl --shutdown</code> and reopen WSL.</p>
+  <div class="block"><span class="lang">ini</span><button class="copy">copy</button>
+<pre>[wsl2]
+networkingMode=mirrored
+firewall=false</pre></div>
+</section>
+
+<!-- ===================================================== -->
+<section id="s3">
+  <h2>3 · DS18B20 temperature sensors (1-Wire)</h2>
+  <div class="stage">milestone M2</div>
+
+  <p class="note">Two DS18B20 sensors share one three-wire bus: VDD, GND and DATA. A single
+     <b>4.7 kΩ pull-up resistor</b> between DATA and VDD serves the whole bus, no matter how
+     many sensors hang off it. Each sensor carries a unique 64-bit ID burned in at the factory,
+     which is how the Pi tells them apart on a shared wire.</p>
+
+  <h3>Does the kernel see the sensors?</h3>
+  <div class="block"><span class="lang">bash</span><button class="copy">copy</button>
+<pre>ls /sys/bus/w1/devices/</pre></div>
+  <div class="out"><b>Good:</b> <code>28-xxxxxxxxxxxx  28-yyyyyyyyyyyy  w1_bus_master1</code><br>
+     <b>Bad:</b> only <code>w1_bus_master1</code> — no sensor is answering.</div>
+  <div class="tip">When we saw only <code>w1_bus_master1</code>, the cause was the
+     <b>wrong resistor value</b>. Swapping in a real 4.7 kΩ made both <code>28-*</code>
+     devices appear immediately.</div>
+
+  <h3>Read the raw kernel file (no Python involved)</h3>
+  <p class="note">Useful for proving the sensor works before you blame your code.
+     The temperature is the number after <code>t=</code>, in thousandths of a degree.</p>
+  <div class="block"><span class="lang">bash</span><button class="copy">copy</button>
+<pre>cat /sys/bus/w1/devices/28-*/w1_slave</pre></div>
+  <div class="out"><b>Expected:</b> a line ending <code>YES</code>, then a line ending
+     <code>t=22937</code> → 22.937 °C</div>
+
+  <h3>One sensor, one reading (Python)</h3>
+  <div class="block"><span class="lang">python</span><button class="copy">copy</button>
+<pre>from w1thermsensor import W1ThermSensor
+
+sensor = W1ThermSensor()
+print(sensor.get_temperature())</pre></div>
+  <div class="tip">The class name is <code>W1ThermSensor</code> — capital <b>T</b> and capital
+     <b>S</b>. <code>W1Thermsensor</code> raises <code>ImportError: cannot import name</code>.</div>
+
+  <h3>Both sensors, with their IDs</h3>
+  <div class="block"><span class="lang">bash</span><button class="copy">copy</button>
+<pre>python3 -c "
+from w1thermsensor import W1ThermSensor
+for s in W1ThermSensor.get_available_sensors():
+    print(s.id, round(s.get_temperature(), 4))"</pre></div>
+  <div class="out"><b>First real reading of the project:</b> <code>22.9375</code> °C</div>
+
+  <h3>Watch the temperature live</h3>
+  <p class="note">Pinch a sensor between your fingers and you should see it climb about a
+     degree every few seconds. This is the quickest proof that the sensor is genuinely
+     sensing and not returning a cached value.</p>
+  <div class="block"><span class="lang">bash</span><button class="copy">copy</button>
+<pre>watch -n 2 'python3 -c "
+from w1thermsensor import W1ThermSensor
+for s in W1ThermSensor.get_available_sensors():
+    print(s.id, round(s.get_temperature(), 4))"'</pre></div>
+
+  <h3>Same thing as a one-line loop</h3>
+  <p class="note">Use this version if a multi-line loop loses its line breaks when pasted —
+     that is what produced <code>syntax error near unexpected token 'done'</code>.</p>
+  <div class="block"><span class="lang">bash</span><button class="copy">copy</button>
+<pre>while true; do python3 -c "from w1thermsensor import W1ThermSensor;[print(s.id, round(s.get_temperature(),4)) for s in W1ThermSensor.get_available_sensors()]"; echo ---; sleep 2; done</pre></div>
+</section>
+
+<!-- ===================================================== -->
+<section id="s4">
+  <h2>4 · Grove relay (the heater actuator)</h2>
+  <div class="stage">milestone M2</div>
+
+  <p class="note">The relay is a digital output: drive GPIO17 HIGH and the relay coil pulls in
+     with an audible <b>click</b> and a lit LED. That click is the whole test — you do not need
+     anything connected to the relay's output terminals to prove it works.</p>
+
+  <h3>One click on, one click off</h3>
+  <div class="block"><span class="lang">bash</span><button class="copy">copy</button>
+<pre>python3 -c "
+from gpiozero import OutputDevice
+import time
+relay = OutputDevice(17, active_high=True, initial_value=False)
+relay.on();  print('ON  - listen for the click'); time.sleep(2)
+relay.off(); print('OFF - second click')"</pre></div>
+
+  <h3>Blink it five times</h3>
+  <div class="block"><span class="lang">bash</span><button class="copy">copy</button>
+<pre>python3 -c "
+from gpiozero import OutputDevice
+import time
+r = OutputDevice(17)
+for i in range(5):
+    r.on();  print('ON');  time.sleep(1)
+    r.off(); print('OFF'); time.sleep(1)"</pre></div>
+  <div class="tip">The Grove cable ends in a single 4-way female housing. It cannot plug onto four
+     adjacent Pi header pins, because the Grove pin order (SIG · NC · VCC · GND) matches no run of
+     Pi pins — and forcing it would put 5 V onto a 3.3 V-only GPIO and destroy it. Use three
+     male-female jumpers as extenders: SIG → pin 11, VCC → pin 2, GND → pin 6.</div>
+</section>
+
+<!-- ===================================================== -->
+<section id="s5">
+  <h2>5 · Piezo buzzer (the fire alarm)</h2>
+  <div class="stage">milestone M3</div>
+
+  <p class="note">A bare two-pin piezo draws only a few milliamps, so it can be driven straight
+     from a GPIO with no transistor. But it is a <b>passive</b> element — it needs an alternating
+     tone, not a steady HIGH. Plain <code>on()</code> produces silence; PWM produces sound.</p>
+
+  <h3>Beep for one second</h3>
+  <div class="block"><span class="lang">bash</span><button class="copy">copy</button>
+<pre>python3 -c "
+from gpiozero import PWMOutputDevice
+import time
+b = PWMOutputDevice(27, frequency=2000)
+b.value = 0.5; print('beep'); time.sleep(1)
+b.off()"</pre></div>
+  <div class="out"><b>Expected:</b> a 2 kHz tone for one second.</div>
+
+  <h3>Play actual notes</h3>
+  <div class="block"><span class="lang">bash</span><button class="copy">copy</button>
+<pre>python3 -c "
+from gpiozero import TonalBuzzer
+from gpiozero.tones import Tone
+import time
+b = TonalBuzzer(27)
+for note in ['A4','C5','E5']:
+    b.play(Tone(note)); time.sleep(0.4)
+b.stop()"</pre></div>
+
+  <h3>Alarm pattern (what the fire scenario will use)</h3>
+  <div class="block"><span class="lang">bash</span><button class="copy">copy</button>
+<pre>python3 -c "
+from gpiozero import PWMOutputDevice
+import time
+b = PWMOutputDevice(27, frequency=2500)
+for i in range(6):
+    b.value = 0.5; time.sleep(0.25)
+    b.value = 0.0; time.sleep(0.25)
+b.off()"</pre></div>
+</section>
+
+<!-- ===================================================== -->
+<section id="s6">
+  <h2>6 · ADS1115 + SEN0570 smoke sensor (I²C)</h2>
+  <div class="stage">milestone M3</div>
+
+  <p class="note">The Raspberry Pi has no analogue inputs at all — every GPIO can only report
+     HIGH or LOW. The smoke sensor outputs a varying voltage, so the ADS1115 sits between them:
+     it measures that voltage and reports it to the Pi as a number over the I²C bus.</p>
+
+  <h3>Is the ADC on the bus?</h3>
+  <div class="block"><span class="lang">bash</span><button class="copy">copy</button>
+<pre>i2cdetect -y 1</pre></div>
+  <div class="out"><b>Expected:</b> <code>48</code> in the grid (row 40, column 8) — the ADS1115's
+     default address with its ADDR pin tied to GND.</div>
+  <div class="tip">A blank grid means wiring: check SDA on pin 3, SCL on pin 5, VDD on 3.3 V,
+     GND to GND — and that I²C is enabled (section 1).</div>
+
+  <h3>Read one analogue channel</h3>
+  <div class="block"><span class="lang">python</span><button class="copy">copy</button>
+<pre>import board, busio
+import adafruit_ads1x15.ads1115 as ADS
+from adafruit_ads1x15.analog_in import AnalogIn
+
+i2c = busio.I2C(board.SCL, board.SDA)
+ads = ADS.ADS1115(i2c)
+chan = AnalogIn(ads, ADS.P0)          # smoke sensor A-out on A0
+
+print("raw:", chan.value)             # 16-bit count
+print("volts:", round(chan.voltage, 3))</pre></div>
+
+  <h3>Watch it while you wave smoke at it</h3>
+  <div class="block"><span class="lang">bash</span><button class="copy">copy</button>
+<pre>python3 -c "
+import board, busio, time
+import adafruit_ads1x15.ads1115 as ADS
+from adafruit_ads1x15.analog_in import AnalogIn
+i2c = busio.I2C(board.SCL, board.SDA)
+chan = AnalogIn(ADS.ADS1115(i2c), ADS.P0)
+while True:
+    print(chan.value, round(chan.voltage, 3)); time.sleep(0.5)"</pre></div>
+  <div class="tip">Note the resting voltage in clean air first — that baseline is what your
+     smoke threshold has to sit above.</div>
+</section>
+
+<!-- ===================================================== -->
+<section id="s7">
+  <h2>7 · The closed loop on real hardware</h2>
+  <div class="stage">milestone M3 → M4</div>
+
+  <p class="note">This is the smallest complete cyber-physical loop: <b>perceive</b> the
+     temperature, <b>decide</b> against a setpoint, <b>act</b> on the relay — then repeat forever.
+     No LLM yet, no network, no database. Everything the project adds later hangs off this
+     three-line skeleton.</p>
+
+  <h3>hw_test.py</h3>
+  <div class="block"><span class="lang">python</span><button class="copy">copy</button>
+<pre>"""hw_test.py — bare-metal closed loop: sensor -> rule -> relay."""
+from w1thermsensor import W1ThermSensor
+from gpiozero import OutputDevice
+import time
+
+SETPOINT = 25.0
+
+sensors = W1ThermSensor.get_available_sensors()
+print("sensors found:", [s.id for s in sensors])
+
+heater = OutputDevice(17, active_high=True, initial_value=False)
+
+try:
+    while True:
+        temp = sensors[0].get_temperature()      # PERCEIVE
+        want_on = temp &lt; SETPOINT                # DECIDE
+        if want_on != heater.is_active:          # ACT (only on change)
+            heater.on() if want_on else heater.off()
+        print(f"{time.strftime('%H:%M:%S')}  {temp:6.2f} C  "
+              f"heater={'ON ' if heater.is_active else 'OFF'}")
+        time.sleep(2)
+except KeyboardInterrupt:
+    heater.off()
+    print("\nstopped, heater off")</pre></div>
+
+  <div class="block"><span class="lang">bash</span><button class="copy">copy</button>
+<pre>cd ~/llm-cps/lab_practice
+python3 hw_test.py</pre></div>
+  <div class="tip">Always turn the heater off in the <code>except</code> branch. If you Ctrl-C out
+     while the relay is energised it stays energised — the physical world does not reset when
+     your program exits.</div>
+</section>
+
+<!-- ===================================================== -->
+<section id="s8">
+  <h2>8 · Running the project code on the Pi</h2>
+  <div class="stage">milestone M3 → M5</div>
+
+  <h3>Get the code onto the Pi</h3>
+  <p class="note"><code>scp</code> failed because the laptop was on the LTU network
+     (<code>130.x</code>) while the Pi was on the project router (<code>192.168.1.x</code>) —
+     two networks that cannot reach each other. Git worked because both machines reach GitHub
+     independently, so the code travels via the internet rather than across the LAN.</p>
+  <div class="block"><span class="lang">bash</span><button class="copy">copy</button>
+<pre>git clone https://github.com/&lt;user&gt;/llm-cps.git
+cd llm-cps
+git pull                      # fetch later changes
+git log --oneline -5          # confirm you have the newest commit</pre></div>
+
+  <h3>Hardware driver self-test</h3>
+  <p class="note"><code>real_hardware.py</code> and <code>fake_hardware.py</code> expose the
+     identical interface — <code>read_temperature()</code>, <code>read_smoke()</code>,
+     <code>set_heater()</code>, <code>set_buzzer()</code> — so the agent above them never knows
+     whether it is driving a simulation or a real room.</p>
+  <div class="block"><span class="lang">bash</span><button class="copy">copy</button>
+<pre>cd ~/llm-cps/lab_practice
+python3 real_hardware.py</pre></div>
+  <div class="tip">Its constructor initialises the buzzer <b>and</b> the ADS1115, so it raises an
+     exception until both are wired. Wire them first, or temporarily use
+     <code>python3 fake_hardware.py</code> to test everything above the driver.</div>
+
+  <h3>Swap simulation for reality in one line</h3>
+  <div class="block"><span class="lang">python</span><button class="copy">copy</button>
+<pre># from fake_hardware import get_room     # simulated
+from real_hardware import get_room         # the actual Pi
+
+room = get_room()
+print(room.read_temperature(), room.read_smoke())
+room.set_heater(True)
+room.set_buzzer(False)</pre></div>
+
+  <h3>Common errors seen along the way</h3>
+  <table>
+    <tr><th>Message</th><th>Cause and fix</th></tr>
+    <tr><td><code>cannot import name W1Thermsensor</code></td>
+        <td>Capitalisation. The class is <code>W1ThermSensor</code>.</td></tr>
+    <tr><td><code>ModuleNotFoundError: db</code></td>
+        <td>Run the script from inside <code>lab_practice</code>, not from the repo root.</td></tr>
+    <tr><td><code>syntax error near unexpected token 'done'</code></td>
+        <td>A multi-line shell loop lost its newlines on paste. Use the one-line form.</td></tr>
+    <tr><td><code>ConnectionRefusedError</code> on MQTT</td>
+        <td>Mosquitto is not running: <code>docker compose up -d</code> in <code>lab_practice</code>.</td></tr>
+    <tr><td><code>cd /mnt/c/... : No such file</code></td>
+        <td><code>/mnt/c</code> only exists inside WSL on Windows, never on the Pi.</td></tr>
+    <tr><td><code>Permission to &lt;repo&gt; denied</code> (403)</td>
+        <td>The personal access token is missing the <code>repo</code> scope. An SSH key is the durable fix.</td></tr>
+  </table>
+</section>
+
+<!-- ===================================================== -->
+<section id="s9">
+  <h2>9 · Pin map as wired</h2>
+  <div class="stage">reference</div>
+
+  <table>
+    <tr><th>Component</th><th>Signal</th><th>Pi pin</th><th>GPIO</th></tr>
+    <tr><td rowspan="3">DS18B20 ×2 (shared 1-Wire bus)</td>
+        <td>VDD</td><td>pin 1</td><td>3.3 V</td></tr>
+    <tr><td>DATA (4.7 kΩ pull-up to VDD)</td><td>pin 7</td><td>GPIO4</td></tr>
+    <tr><td>GND</td><td>pin 9</td><td>GND</td></tr>
+    <tr><td rowspan="3">Grove relay (heater)</td>
+        <td>SIG</td><td>pin 11</td><td>GPIO17</td></tr>
+    <tr><td>VCC</td><td>pin 2</td><td>5 V</td></tr>
+    <tr><td>GND</td><td>pin 6</td><td>GND</td></tr>
+    <tr><td rowspan="2">Piezo buzzer (alarm)</td>
+        <td>leg 1</td><td>pin 13</td><td>GPIO27</td></tr>
+    <tr><td>leg 2</td><td>pin 20</td><td>GND</td></tr>
+    <tr><td rowspan="4">ADS1115 ADC</td>
+        <td>SDA</td><td>pin 3</td><td>GPIO2</td></tr>
+    <tr><td>SCL</td><td>pin 5</td><td>GPIO3</td></tr>
+    <tr><td>VDD</td><td>pin 17</td><td>3.3 V</td></tr>
+    <tr><td>GND</td><td>pin 25</td><td>GND</td></tr>
+    <tr><td>SEN0570 smoke sensor</td><td>A-out</td><td colspan="2">ADS1115 channel A0</td></tr>
+  </table>
+
+  <p class="note"><b>Breadboard reminder:</b> each row of five holes is one electrical node, and
+     the <code>a–e</code> half is separate from the <code>f–j</code> half of the same row. Two legs
+     in the same row on the same side are connected; the same row across the centre channel
+     is not.</p>
+</section>
+
+<footer>D7065E — Cyber-Physical Systems · Raspberry Pi 5 bring-up reference</footer>
+
+</div>
+
+<script>
+document.querySelectorAll('button.copy').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    var code = btn.parentElement.querySelector('pre').innerText;
+    navigator.clipboard.writeText(code).then(function(){
+      var old = btn.textContent;
+      btn.textContent = 'copied';
+      setTimeout(function(){ btn.textContent = old; }, 1200);
+    });
+  });
+});
+</script>
+</body>
+</html>

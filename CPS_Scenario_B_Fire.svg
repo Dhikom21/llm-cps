@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1160 560" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,3 L0,6 z" fill="#37474F"/></marker>
+    <marker id="at" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,3 L0,6 z" fill="#00838F"/></marker>
+    <marker id="ag" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,3 L0,6 z" fill="#2E7D32"/></marker>
+  </defs>
+  <text x="580" y="34" text-anchor="middle" font-size="20" font-weight="700" fill="#006064">Scenario B — Fire &amp; evacuation (BuildSim digital twin)</text>
+  <text x="580" y="56" text-anchor="middle" font-size="13" fill="#555">A real heat/smoke stimulus is detected; the agent runs its response playbook, rendered live in the 3D building.</text>
+
+  <!-- 1 stimulus -->
+  <rect x="40" y="230" width="215" height="100" rx="10" fill="#E8F5E9" stroke="#2E7D32" stroke-width="1.8"/>
+  <text x="147" y="266" text-anchor="middle" font-size="13" font-weight="700" fill="#1B5E20">Real heat / smoke</text>
+  <text x="147" y="286" text-anchor="middle" font-size="12" fill="#444">stimulus → Pi sensor</text>
+  <text x="147" y="306" text-anchor="middle" font-size="11" fill="#777">(heat gun / MQ-2 module)</text>
+  <path d="M255,280 L300,280" fill="none" stroke="#37474F" stroke-width="2" marker-end="url(#a)"/>
+  <circle cx="278" cy="258" r="12" fill="#2E7D32"/><text x="278" y="263" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">1</text>
+
+  <!-- 2 agent detects -->
+  <rect x="305" y="215" width="230" height="130" rx="10" fill="#EDE7F6" stroke="#6A1B9A" stroke-width="2"/>
+  <text x="420" y="250" text-anchor="middle" font-size="13.5" font-weight="700" fill="#4A148C">LLM Agent</text>
+  <text x="420" y="271" text-anchor="middle" font-size="12" fill="#444">detects fire → decides</text>
+  <text x="420" y="293" text-anchor="middle" font-size="11" fill="#777">(not a false alarm?)</text>
+  <text x="420" y="320" text-anchor="middle" font-size="11" fill="#777">runs the playbook →</text>
+
+  <!-- playbook steps (guarded tools) -->
+  <rect x="565" y="150" width="270" height="260" rx="10" fill="#FFF3E0" stroke="#EF6C00" stroke-width="2"/>
+  <text x="700" y="178" text-anchor="middle" font-size="13" font-weight="700" fill="#E65100">Response playbook (guarded tools)</text>
+  <line x1="585" y1="190" x2="815" y2="190" stroke="#FFCC80"/>
+  <circle cx="592" cy="222" r="12" fill="#EF6C00"/><text x="592" y="227" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">2</text>
+  <text x="614" y="220" font-size="12" font-weight="600" fill="#333">create_alert (critical)</text>
+  <text x="614" y="237" font-size="10.5" fill="#777">sound the alarm</text>
+  <circle cx="592" cy="272" r="12" fill="#EF6C00"/><text x="592" y="277" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">3</text>
+  <text x="614" y="270" font-size="12" font-weight="600" fill="#333">set_actuator</text>
+  <text x="614" y="287" font-size="10.5" fill="#777">sprinkler ON + unlock doors</text>
+  <circle cx="592" cy="322" r="12" fill="#EF6C00"/><text x="592" y="327" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">4</text>
+  <text x="614" y="320" font-size="12" font-weight="600" fill="#333">find_route + highlight_rooms</text>
+  <text x="614" y="337" font-size="10.5" fill="#777">safe evacuation path (avoids fire)</text>
+  <text x="700" y="372" text-anchor="middle" font-size="10.5" font-weight="600" fill="#E65100">guardrails: whitelist + reason + audit</text>
+  <path d="M535,280 L563,280" fill="none" stroke="#6A1B9A" stroke-width="2" marker-end="url(#a)"/>
+
+  <!-- 5 render in twin -->
+  <path d="M835,280 L868,280" fill="none" stroke="#00838F" stroke-width="2.2" marker-end="url(#at)"/>
+  <circle cx="851" cy="258" r="12" fill="#00838F"/><text x="851" y="263" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">5</text>
+
+  <!-- BuildSim twin -->
+  <rect x="872" y="150" width="256" height="300" rx="10" fill="#E0F7FA" stroke="#00838F" stroke-width="2"/>
+  <text x="1000" y="176" text-anchor="middle" font-size="12.5" font-weight="700" fill="#006064">BuildSim 3D twin (live)</text>
+  <rect x="892" y="192" width="216" height="200" rx="6" fill="#fff" stroke="#00838F" stroke-width="1.4"/>
+  <line x1="1000" y1="192" x2="1000" y2="392" stroke="#B2DFDB"/>
+  <line x1="892" y1="292" x2="1108" y2="292" stroke="#B2DFDB"/>
+  <text x="946" y="214" text-anchor="middle" font-size="10.5" font-weight="700" fill="#006064">A109</text>
+  <!-- fire -->
+  <path d="M1052,240 q-12,-22 5,-34 q-3,15 10,17 q14,3 7,22 z" fill="#E53935"/>
+  <path d="M1058,240 q-5,-10 3,-15 q-1,8 5,8 z" fill="#FFB300"/>
+  <ellipse cx="1075" cy="230" rx="13" ry="7" fill="#B0BEC5" opacity="0.7"/>
+  <text x="1060" y="272" text-anchor="middle" font-size="9.5" fill="#E53935" font-weight="600">fire + smoke</text>
+  <circle cx="1050" cy="208" r="2.2" fill="#1E88E5"/><circle cx="1060" cy="205" r="2.2" fill="#1E88E5"/><circle cx="1070" cy="208" r="2.2" fill="#1E88E5"/>
+  <text x="1060" y="199" text-anchor="middle" font-size="8.5" fill="#1565C0">sprinkler</text>
+  <rect x="995" y="330" width="9" height="24" fill="#8D6E63"/>
+  <text x="1000" y="372" text-anchor="middle" font-size="9" fill="#5D4037">door → unlocked</text>
+  <path d="M1058,300 C1010,340 950,350 918,360" fill="none" stroke="#2E7D32" stroke-width="2.2" stroke-dasharray="6,4" marker-end="url(#ag)"/>
+  <rect x="900" y="352" width="42" height="22" rx="4" fill="#2E7D32"/>
+  <text x="921" y="367" text-anchor="middle" font-size="9.5" font-weight="700" fill="#fff">EXIT</text>
+  <text x="1000" y="410" text-anchor="middle" font-size="9.5" fill="#2E7D32" font-weight="600">red fire room · green safe route</text>
+  <text x="1000" y="438" text-anchor="middle" font-size="10.5" fill="#006064" font-weight="600">rendered live in 3D</text>
+</svg>

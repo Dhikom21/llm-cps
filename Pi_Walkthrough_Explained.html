@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Raspberry Pi Bring-up — Step by Step, Explained (D7065E)</title>
+<style>
+  :root{
+    --bg:#f6f8fa; --card:#ffffff; --ink:#1f2933; --muted:#5b6b7a;
+    --line:#dde4ea; --accent:#1a5fb4; --accent-soft:#e8f0fb;
+    --code-bg:#1e242c; --code-ink:#e6edf3; --ok:#1b7f4c; --warn:#b26a00;
+    --why:#6c3fa8; --why-soft:#f2edfa;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:15.5px/1.72 "Segoe UI",Roboto,Arial,sans-serif;}
+  header{background:linear-gradient(135deg,#0f2d54,#1a5fb4);color:#fff;padding:40px 28px 34px;}
+  header h1{margin:0 0 8px;font-size:28px;letter-spacing:.2px}
+  header p{margin:0;opacity:.9;font-size:15px;max-width:800px}
+  .wrap{max-width:980px;margin:0 auto;padding:0 20px 90px}
+  nav{background:var(--card);border:1px solid var(--line);border-radius:10px;
+      padding:18px 22px;margin:-24px 0 30px;box-shadow:0 2px 12px rgba(20,40,70,.08)}
+  nav b{display:block;font-size:12px;letter-spacing:.9px;text-transform:uppercase;
+        color:var(--muted);margin-bottom:10px}
+  nav ol{margin:0;padding-left:20px;columns:2;column-gap:36px}
+  nav li{margin:2px 0}
+  nav a{color:var(--accent);text-decoration:none;font-size:14.5px}
+  nav a:hover{text-decoration:underline}
+  section{background:var(--card);border:1px solid var(--line);border-radius:10px;
+          padding:26px 28px 16px;margin-bottom:26px;box-shadow:0 1px 5px rgba(20,40,70,.05)}
+  h2{margin:0 0 14px;font-size:21px;color:#0f2d54;
+     border-bottom:2px solid var(--accent-soft);padding-bottom:10px}
+  h2 .n{display:inline-block;background:var(--accent);color:#fff;border-radius:6px;
+        width:30px;height:30px;line-height:30px;text-align:center;font-size:15px;
+        margin-right:10px;vertical-align:2px}
+  h3{margin:26px 0 6px;font-size:16.5px;color:#22303d}
+  p{margin:10px 0}
+  .analogy{background:var(--why-soft);border-left:4px solid var(--why);
+           padding:12px 16px;border-radius:0 8px 8px 0;margin:14px 0;font-size:15px}
+  .analogy b{color:var(--why)}
+  .block{position:relative;margin:14px 0 6px}
+  .block .lang{position:absolute;top:8px;right:56px;font-size:10.5px;letter-spacing:.8px;
+       text-transform:uppercase;color:#9fb0c0}
+  pre{background:var(--code-bg);color:var(--code-ink);border-radius:8px;
+      padding:16px 18px;overflow-x:auto;margin:0;
+      font:13px/1.6 "Cascadia Code",Consolas,"Courier New",monospace;white-space:pre}
+  button.copy{position:absolute;top:6px;right:8px;background:#33404e;color:#cfe0f0;
+      border:0;border-radius:5px;padding:4px 9px;font-size:11px;cursor:pointer}
+  button.copy:hover{background:#465566}
+  table.lines{border-collapse:collapse;width:100%;margin:8px 0 20px;font-size:14.5px}
+  table.lines th,table.lines td{border:1px solid var(--line);padding:8px 11px;
+       text-align:left;vertical-align:top}
+  table.lines th{background:#f0f4f8;font-weight:600;color:#22303d}
+  table.lines td:first-child{width:42%;background:#fbfcfd;
+       font:12.5px/1.5 "Cascadia Code",Consolas,monospace;color:#28405c;white-space:pre-wrap}
+  .out{border-left:4px solid var(--ok);background:#f3faf6;padding:10px 16px;
+       margin:8px 0 16px;border-radius:0 8px 8px 0;font-size:14.5px;color:#2c4a3b}
+  .out b{color:var(--ok)}
+  .tip{border-left:4px solid var(--warn);background:#fff8ed;padding:10px 16px;
+       margin:8px 0 16px;border-radius:0 8px 8px 0;font-size:14.5px;color:#6b4a12}
+  code{background:#eef2f6;border-radius:4px;padding:1px 5px;
+       font:12.5px "Cascadia Code",Consolas,monospace}
+  .loop{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0 6px}
+  .loop div{flex:1;min-width:150px;background:var(--accent-soft);border:1px solid #c6dbf5;
+            border-radius:8px;padding:12px 14px;font-size:14px}
+  .loop div b{display:block;color:var(--accent);font-size:13px;letter-spacing:.5px;
+              text-transform:uppercase;margin-bottom:4px}
+  footer{text-align:center;color:var(--muted);font-size:13.5px;padding:14px 0 0}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>From a bare Raspberry Pi to a working control loop</h1>
+  <p>The whole bring-up, in the order it happened, with every piece of Python explained line by
+     line in plain language. If you have never touched hardware before, start at step 1 and read
+     straight through — nothing is assumed.</p>
+</header>
+
+<div class="wrap">
+
+<nav>
+  <b>The nine steps</b>
+  <ol>
+    <li><a href="#s1">What we are actually building</a></li>
+    <li><a href="#s2">The Pi and its 40 pins</a></li>
+    <li><a href="#s3">Teaching the pins a language</a></li>
+    <li><a href="#s4">Getting a keyboard onto the Pi</a></li>
+    <li><a href="#s5">Step one of the loop: sensing</a></li>
+    <li><a href="#s6">Step two: acting on the world</a></li>
+    <li><a href="#s7">Making noise: why a buzzer is different</a></li>
+    <li><a href="#s8">Reading something that isn't yes/no</a></li>
+    <li><a href="#s9">Closing the loop — and adding the LLM</a></li>
+  </ol>
+</nav>
+
+<!-- ============================================================ -->
+<section id="s1">
+  <h2><span class="n">1</span>What we are actually building</h2>
+
+  <p>A <b>cyber-physical system</b> is any system where software senses the real world, decides
+     something, and then changes the real world. That is the entire idea. It is always the same
+     three beats, repeated forever:</p>
+
+  <div class="loop">
+    <div><b>Perceive</b>How warm is the room right now?</div>
+    <div><b>Decide</b>Is that too cold?</div>
+    <div><b>Act</b>Switch the heater on.</div>
+  </div>
+
+  <p>Then it loops back to the beginning, because acting changes the world, which changes what
+     you perceive next time. That feedback is what makes it a <i>loop</i> rather than a script.</p>
+
+  <div class="analogy">
+    <b>Analogy.</b> You are in a room and feel cold. Your skin is the <i>sensor</i>. Your brain
+    comparing "cold" against "comfortable" is the <i>decision</i>. Your hand reaching for the
+    thermostat is the <i>actuator</i>. Thirty seconds later your skin feels the room again — that
+    is the loop closing. Everything we build on the Pi is a mechanical version of exactly this,
+    and later on the LLM takes over the job of the brain.
+  </div>
+
+  <p>So the work ahead has a shape: first give the Pi skin (a temperature sensor), then give it a
+     hand (a relay that switches a heater), then write the few lines of Python that connect the
+     two. Everything else — the database, the dashboard, the language model — is decoration
+     hanging off that core loop.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="s2">
+  <h2><span class="n">2</span>The Pi and its 40 pins</h2>
+
+  <p>A Raspberry Pi is an ordinary small Linux computer, with one extra thing a laptop does not
+     have: a double row of 40 metal pins along one edge, called the <b>GPIO header</b>. GPIO
+     stands for General Purpose Input/Output, which is a long way of saying "pins you control
+     from your own code".</p>
+
+  <p>Each pin does one of three jobs. Some are permanently wired to power — a couple give 5 volts,
+     a couple give 3.3 volts. Some are permanently wired to ground, which is the return path every
+     circuit needs. The rest, the majority, are the programmable ones: your code can either
+     <b>drive</b> them (force them to 3.3 V or 0 V, to switch something on or off) or <b>read</b>
+     them (ask whether something out there is holding them high or low).</p>
+
+  <div class="analogy">
+    <b>Analogy.</b> Think of the header as 40 sockets on a wall. A few are mains outlets you can
+    only take power from. A few are drains. The rest are light switches that your program can flip
+    — or doorbells your program can listen to. The physical wiring decides which device is on which
+    socket; your code decides what to do with it.
+  </div>
+
+  <p>Two numbering systems exist for these pins and they are a constant source of confusion. The
+     <b>physical pin number</b> counts along the header, 1 to 40, like seats in a row. The
+     <b>GPIO number</b> is the chip's own internal name for that pin. They do not match: physical
+     pin 11 is GPIO17. Wiring diagrams usually talk in physical pins because you are counting holes
+     with your finger; Python libraries usually talk in GPIO numbers. When you read
+     <code>OutputDevice(17)</code> in our code, that is <i>GPIO</i>17, which is the eleventh pin
+     along.</p>
+
+  <h3>The breadboard</h3>
+
+  <p>A breadboard is a plastic slab full of holes that lets you join wires without soldering.
+     The rule that matters: <b>each row of five holes is one single electrical connection</b>.
+     Push two wires into the same row and they are joined, as surely as if you had twisted them
+     together. Push them into different rows and they are not.</p>
+
+  <p>One extra wrinkle: a row is split down the middle by a channel. The holes labelled
+     <code>a b c d e</code> form one connection, and <code>f g h i j</code> on the same numbered
+     row form a <i>separate</i> one. So "row 6" is really two independent connections facing each
+     other.</p>
+
+  <div class="tip">This is why our sensor legs sit in rows 5, 6 and 7 on the <code>f–j</code> side,
+     and why the jumper going to the Pi has to be plugged into the same side of the same row —
+     otherwise it is connected to nothing at all.</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="s3">
+  <h2><span class="n">3</span>Teaching the pins a language</h2>
+
+  <p>Out of the box, a GPIO pin only understands "high" and "low". But our temperature sensor does
+     not communicate in high and low — it communicates in a <b>protocol</b>, a specific rhythm of
+     pulses with a defined meaning, called 1-Wire. Likewise the analogue-to-digital converter we
+     add later speaks a different protocol called I²C.</p>
+
+  <p>The Pi's firmware can turn certain pins into protocol speakers, but you have to ask. That
+     request happens at boot time, through a setting file, and <code>raspi-config</code> is the
+     tool that edits it for you:</p>
+
+  <div class="block"><span class="lang">bash</span><button class="copy">copy</button>
+<pre>sudo raspi-config nonint do_onewire 0     # 0 means "enable"
+sudo raspi-config nonint do_i2c 0
+sudo reboot</pre></div>
+
+  <p>The reboot is not optional. These settings are read once, while the Pi is starting up, before
+     Linux is fully awake — so a change only takes effect on the next boot.</p>
+
+  <div class="analogy">
+    <b>Analogy.</b> The pins are staff who all speak plain English. Enabling 1-Wire is sending one
+    of them on a course to learn Morse code. Until they come back from the course — the reboot —
+    they still only speak English, and your Morse-code sensor gets no reply.
+  </div>
+
+  <p>Once it has rebooted, you can check the training took:</p>
+
+  <div class="block"><span class="lang">bash</span><button class="copy">copy</button>
+<pre>grep -iE "w1|i2c" /boot/firmware/config.txt</pre></div>
+
+  <div class="out"><b>You want to see:</b> <code>dtoverlay=w1-gpio</code> and
+     <code>dtparam=i2c_arm=on</code>. If those lines are present, the pins now speak the protocols
+     and any remaining problem is in the wiring.</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="s4">
+  <h2><span class="n">4</span>Getting a keyboard onto the Pi</h2>
+
+  <p>The Pi has no screen. You control it over the network from your laptop using <b>SSH</b>,
+     which gives you a text terminal on the Pi inside a window on your laptop. Anything you type
+     runs over there.</p>
+
+  <div class="block"><span class="lang">bash</span><button class="copy">copy</button>
+<pre>ssh dp@192.168.1.45</pre></div>
+
+  <p>Read that as: connect to the machine at that address and log in as the user <code>dp</code>.
+     For this to work, the two machines have to be on the same network and the Pi has to have an
+     address of its own.</p>
+
+  <h3>Why ours hung, and how we found out</h3>
+
+  <p>Our first attempts simply froze with no error. The useful trick is the <code>-v</code> flag,
+     which makes SSH narrate every stage of the handshake so you can see the exact point it stops:</p>
+
+  <div class="block"><span class="lang">bash</span><button class="copy">copy</button>
+<pre>ssh -v dp@192.168.1.45</pre></div>
+
+  <p>It stopped at <code>Connection timed out during banner exchange</code>. That one phrase told
+     us a great deal. The "banner" is the first sentence each side speaks when the connection
+     opens. Reaching that stage means the network path was fine and something was listening — but
+     then the conversation died. The classic cause is that <b>two machines are answering to the
+     same address</b>, so half the replies go to the wrong one. The Pi's own log confirmed it, by
+     recording a connection it had never managed to finish:</p>
+
+  <div class="block"><span class="lang">bash</span><button class="copy">copy</button>
+<pre>sudo journalctl -u ssh -n 30 --no-pager</pre></div>
+
+  <div class="analogy">
+    <b>Analogy.</b> You phone a house where two people share one handset. You say hello; one of
+    them hears you, but the other one is the one holding the microphone. Both ends wait politely
+    for a reply that will never come. Nothing is broken — the address is just ambiguous.
+  </div>
+
+  <p>The lesson worth keeping: when a network tool hangs, do not guess. Every layer has a command
+     that answers one question, and you walk up the layers until one fails.
+     <code>ping</code> asks "does this address exist?".
+     <code>Test-NetConnection &lt;ip&gt; -Port 22</code> asks "is anything listening on the SSH
+     port?". <code>ssh -v</code> asks "how far does the conversation get?". The first one that
+     misbehaves is where your problem lives.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="s5">
+  <h2><span class="n">5</span>Step one of the loop: sensing</h2>
+
+  <p>The DS18B20 is a temperature sensor the size of a grain of rice on three legs: power, ground,
+     and data. What makes it pleasant to work with is that it is not really a lump of metal that
+     changes resistance — it has a tiny computer inside. It measures its own temperature, converts
+     it to a number, and sends that number down the data wire as digits. You never deal with
+     voltages or calibration curves; you receive a number.</p>
+
+  <p>Better still, several sensors can share one data wire. Each one leaves the factory with a
+     unique 64-bit serial number burned into it, so when the Pi calls out on the shared wire, only
+     the sensor whose number was called answers.</p>
+
+  <div class="analogy">
+    <b>Analogy.</b> One telephone line into a house with several people on it. The Pi calls out
+    "number 28-a1b2, what's your temperature?" and only that person speaks. That is why two
+    sensors need no extra pins — just the same three wires.
+  </div>
+
+  <h3>Why the 4.7 kΩ resistor exists</h3>
+
+  <p>The shared data wire needs a rule for what "nobody is talking" looks like. The resistor gently
+     pulls the wire up to 3.3 V, so idle means high. To send a zero, a sensor yanks the wire down
+     to ground, which easily overpowers that gentle pull. When it lets go, the resistor pulls the
+     line back up again.</p>
+
+  <p>It is one resistor for the <i>whole bus</i>, not one per sensor — the wire needs the rule,
+     not each talker. Get its value wrong and the line either cannot be pulled down or cannot
+     spring back fast enough. That is exactly what happened to us: with the wrong resistor fitted,
+     the Pi found no sensors at all. Replacing it with a true 4.7 kΩ made both appear instantly.</p>
+
+  <h3>Seeing the sensors without writing any code</h3>
+
+  <p>Linux presents the 1-Wire bus as a folder. Each sensor that answers turns up as a
+     subfolder named after its serial number. So a plain directory listing is your wiring test:</p>
+
+  <div class="block"><span class="lang">bash</span><button class="copy">copy</button>
+<pre>ls /sys/bus/w1/devices/</pre></div>
+
+  <div class="out"><b>Two sensors wired correctly:</b>
+     <code>28-xxxxxxxxxxxx&nbsp;&nbsp;28-yyyyyyyyyyyy&nbsp;&nbsp;w1_bus_master1</code><br>
+     <b>Nothing answering:</b> only <code>w1_bus_master1</code> — that entry is the Pi's own bus
+     controller, which is always there whether or not anything is plugged in.</div>
+
+  <p>You can even read a temperature with no Python whatsoever, because each sensor's folder holds
+     a file containing its latest reading:</p>
+
+  <div class="block"><span class="lang">bash</span><button class="copy">copy</button>
+<pre>cat /sys/bus/w1/devices/28-*/w1_slave</pre></div>
+
+  <p>The output ends with something like <code>t=22937</code>, which is the temperature in
+     thousandths of a degree — 22.937 °C. This is a genuinely useful habit: prove the hardware
+     works at the lowest possible level <i>first</i>, so that when your Python misbehaves you
+     already know the sensor is innocent.</p>
+
+  <h3>The same thing in Python</h3>
+
+  <div class="block"><span class="lang">python</span><button class="copy">copy</button>
+<pre>from w1thermsensor import W1ThermSensor
+
+for sensor in W1ThermSensor.get_available_sensors():
+    print(sensor.id, round(sensor.get_temperature(), 4))</pre></div>
+
+  <table class="lines">
+    <tr><th>Line</th><th>What it does</th></tr>
+    <tr><td>from w1thermsensor import W1ThermSensor</td>
+        <td>Borrow the ready-made DS18B20 class from the library. It does the tedious part —
+            finding the folders, reading the file, handling the thousandths — so we don't.
+            <b>Watch the capitals:</b> <code>W1ThermSensor</code>. Writing
+            <code>W1Thermsensor</code> gives <code>ImportError: cannot import name</code>, which
+            cost us a few minutes.</td></tr>
+    <tr><td>W1ThermSensor.get_available_sensors()</td>
+        <td>"Go and look in that folder, and hand me back one object for every sensor you find."
+            Returns a list — empty if the wiring is wrong, two entries for us.</td></tr>
+    <tr><td>for sensor in …:</td>
+        <td>Deal with each sensor in turn. Written this way the code doesn't care whether you have
+            one sensor or five; it just works through whatever is there.</td></tr>
+    <tr><td>sensor.id</td>
+        <td>That sensor's unique serial number. This is how you tell your two identical-looking
+            sensors apart in the data later — one is at the radiator, one is by the window.</td></tr>
+    <tr><td>sensor.get_temperature()</td>
+        <td>Triggers a fresh measurement and returns degrees Celsius as a normal Python float.
+            This single call is the "perceive" beat of the whole cyber-physical loop.</td></tr>
+    <tr><td>round(…, 4)</td>
+        <td>Cosmetic. The sensor's real resolution is 1/16 °C, so readings land on values like
+            22.9375 — four decimals keeps the true precision without a wall of digits.</td></tr>
+  </table>
+
+  <div class="out"><b>The first real reading of this project was 22.9375 °C.</b> That number is
+     the moment the project stopped being a simulation.</div>
+
+  <h3>Proving it is really sensing</h3>
+
+  <p>A single reading is not proof. A value can be stale, cached, or hard-coded. The honest test is
+     to change the world and watch the number follow — so pinch a sensor between your fingers and
+     watch it climb:</p>
+
+  <div class="block"><span class="lang">bash</span><button class="copy">copy</button>
+<pre>watch -n 2 'python3 -c "
+from w1thermsensor import W1ThermSensor
+for s in W1ThermSensor.get_available_sensors():
+    print(s.id, round(s.get_temperature(), 4))"'</pre></div>
+
+  <p><code>watch -n 2</code> simply re-runs the command every two seconds and redraws the screen,
+     so you get a live display without writing a loop. Within a few seconds of holding a sensor you
+     should see it rise a degree or more, then drift back down when you let go. <i>That</i> is
+     proof.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="s6">
+  <h2><span class="n">6</span>Step two: acting on the world</h2>
+
+  <p>Sensing is only half a loop. To close it, the Pi needs a hand — and the hand here is a
+     <b>relay</b>.</p>
+
+  <p>A relay is an electrically operated switch. A small current from a GPIO pin energises a coil,
+     the coil becomes a magnet, the magnet drags a metal contact across, and that contact closes a
+     completely separate circuit which can carry far more power than the Pi could ever supply.</p>
+
+  <div class="analogy">
+    <b>Analogy.</b> The Pi is a person who can only whisper, and the heater responds only to
+    shouting. The relay is a megaphone with a button: a gentle press on the button produces a very
+    loud noise. The two sides never touch, which is exactly the point — the heater's power cannot
+    flow back and destroy the Pi.
+  </div>
+
+  <p>That separation is why the relay is the single most important safety component on the board,
+     and it is why the test for it is so satisfying: energising the coil makes a clearly audible
+     <b>click</b>. You do not need anything wired to the output side to know it works — the click
+     and the LED tell you the software reached the physical world.</p>
+
+  <div class="block"><span class="lang">python</span><button class="copy">copy</button>
+<pre>from gpiozero import OutputDevice
+import time
+
+relay = OutputDevice(17, active_high=True, initial_value=False)
+
+relay.on()                 # click
+time.sleep(2)
+relay.off()                # click again</pre></div>
+
+  <table class="lines">
+    <tr><th>Line</th><th>What it does</th></tr>
+    <tr><td>from gpiozero import OutputDevice</td>
+        <td><code>gpiozero</code> is the Pi's friendly GPIO library. <code>OutputDevice</code> is
+            its most basic building block: a pin you drive, as opposed to a pin you read.</td></tr>
+    <tr><td>OutputDevice(17, …)</td>
+        <td>Claim GPIO17 — physical pin 11 — and from now on this object <i>is</i> that pin. The
+            library reserves it, so a second program trying to grab the same pin gets a clear
+            error instead of a silent fight.</td></tr>
+    <tr><td>active_high=True</td>
+        <td>Declares which voltage means "on". Our relay activates when the pin is driven high,
+            so <code>on()</code> should send it high. Plenty of relay modules are the opposite —
+            <b>active-low</b> — and with those you set this to <code>False</code>, otherwise
+            <code>on()</code> would switch the heater off. It is a one-word fix for a very
+            confusing symptom.</td></tr>
+    <tr><td>initial_value=False</td>
+        <td>Start in the off state. Without it there is a brief window at program start where the
+            pin's state is undefined — meaning the heater could twitch on for a moment every time
+            you launch your script. On real hardware, defining the starting state matters.</td></tr>
+    <tr><td>relay.on() / relay.off()</td>
+        <td>Drive the pin high / low. This is the "act" beat of the loop — the one line in the
+            whole project where software becomes physics.</td></tr>
+    <tr><td>time.sleep(2)</td>
+        <td>Do nothing for two seconds, so you can hear both clicks as separate events rather than
+            one blur.</td></tr>
+  </table>
+
+  <div class="tip"><b>Why the Grove cable needed adapting.</b> Our relay came with a four-way
+     connector in one moulded block. It cannot plug straight onto four Pi pins, because its wire
+     order (SIG · NC · VCC · GND) does not match any four consecutive pins on the Pi header — and
+     lining it up by force would put 5 V onto a 3.3 V-only GPIO and destroy the pin. Three
+     male-female jumpers used as extenders solve it: SIG to pin 11, VCC to pin 2, GND to pin 6.
+     The general lesson is that a connector fitting physically means nothing; only the pin order
+     matters.</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="s7">
+  <h2><span class="n">7</span>Making noise: why a buzzer is different</h2>
+
+  <p>The buzzer is our alarm for the fire scenario. Wiring it is trivial — a bare piezo draws so
+     little current that it connects straight to a GPIO pin and ground with no transistor — but
+     driving it catches everyone out the first time.</p>
+
+  <p>A piezo element makes a sound by flexing. Apply a voltage and it bends once, with a faint
+     tick. Hold that voltage and it just stays bent, silently. To produce a continuous tone you
+     have to make it flex back and forth thousands of times a second, which means the voltage has
+     to keep switching. A steady <code>on()</code> gives you silence.</p>
+
+  <div class="analogy">
+    <b>Analogy.</b> A guitar string. Pull it aside and hold it there and you hear nothing. Let it
+    vibrate and you get a note, and how fast it vibrates sets the pitch. The piezo is the same:
+    it needs to be shaken, not held.
+  </div>
+
+  <p>The shaking is done with <b>PWM</b> — Pulse Width Modulation — which is just the pin being
+     switched on and off very rapidly by hardware, so your program does not have to sit in a loop
+     doing it:</p>
+
+  <div class="block"><span class="lang">python</span><button class="copy">copy</button>
+<pre>from gpiozero import PWMOutputDevice
+import time
+
+buzzer = PWMOutputDevice(27, frequency=2000)
+
+buzzer.value = 0.5         # start the tone
+time.sleep(1)
+buzzer.off()</pre></div>
+
+  <table class="lines">
+    <tr><th>Line</th><th>What it does</th></tr>
+    <tr><td>PWMOutputDevice(27, …)</td>
+        <td>Like <code>OutputDevice</code>, but this pin can switch itself rapidly instead of
+            simply sitting high or low. GPIO27 is physical pin 13.</td></tr>
+    <tr><td>frequency=2000</td>
+        <td>Switch 2000 times per second — so the piezo flexes 2000 times per second, and you hear
+            a 2 kHz tone. Change this number and the pitch changes. This is the one setting that
+            decides what the alarm sounds like.</td></tr>
+    <tr><td>buzzer.value = 0.5</td>
+        <td>The <b>duty cycle</b>: what fraction of each cycle the pin spends high. 0.5 means half
+            on, half off — a clean square wave, and the loudest, cleanest tone. 0 is silence, 1 is
+            permanently on which, as above, is also silence.</td></tr>
+    <tr><td>buzzer.off()</td>
+        <td>Stop switching. Sets the duty cycle to zero and the noise ends.</td></tr>
+  </table>
+
+  <p>To make it sound like an alarm rather than a test tone, pulse it — on for a quarter second,
+     off for a quarter second — by setting <code>value</code> back and forth in a short loop.
+     Urgency in an alarm comes from the rhythm, not the pitch.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="s8">
+  <h2><span class="n">8</span>Reading something that isn't yes/no</h2>
+
+  <p>Now a genuine limitation. The Raspberry Pi has <b>no analogue inputs at all</b>. Every one of
+     its GPIO pins can report exactly two things: high or low. It has no way to tell you that a
+     wire is sitting at 1.8 volts.</p>
+
+  <p>Our smoke sensor, unlike the DS18B20, has no computer inside. It simply outputs a voltage that
+     rises as more smoke reaches it — a little in clean air, more in light smoke, more still in
+     heavy smoke. The Pi cannot read that. The two are physically incompatible.</p>
+
+  <p>The fix is a separate chip, the <b>ADS1115</b>, an analogue-to-digital converter. It measures
+     the voltage properly, turns it into a number, and hands that number to the Pi over the I²C
+     bus — a form of communication the Pi <i>can</i> understand.</p>
+
+  <div class="analogy">
+    <b>Analogy.</b> The Pi can only ask "is the bucket empty or not?". The smoke sensor answers in
+    inches of water. The ADS1115 is an assistant with a ruler: it measures the water, reads the
+    number out loud, and now the Pi has something it can work with.
+  </div>
+
+  <h3>Check the chip is present before writing code</h3>
+
+  <div class="block"><span class="lang">bash</span><button class="copy">copy</button>
+<pre>i2cdetect -y 1</pre></div>
+
+  <p>This scans the I²C bus and prints a grid of every device that answers. Each device has an
+     address, and the ADS1115's default is <code>0x48</code>. Seeing <code>48</code> appear in the
+     grid means the chip is powered and talking — again, proving the hardware before trusting
+     any Python.</p>
+
+  <div class="block"><span class="lang">python</span><button class="copy">copy</button>
+<pre>import board, busio
+import adafruit_ads1x15.ads1115 as ADS
+from adafruit_ads1x15.analog_in import AnalogIn
+
+i2c  = busio.I2C(board.SCL, board.SDA)
+ads  = ADS.ADS1115(i2c)
+chan = AnalogIn(ads, ADS.P0)
+
+print("raw:  ", chan.value)
+print("volts:", round(chan.voltage, 3))</pre></div>
+
+  <table class="lines">
+    <tr><th>Line</th><th>What it does</th></tr>
+    <tr><td>busio.I2C(board.SCL, board.SDA)</td>
+        <td>Open the I²C bus. <code>SCL</code> is the clock line and <code>SDA</code> the data
+            line — the two wires every I²C device shares. <code>board.SCL</code> just means "this
+            particular board's clock pin", so the same code runs on different hardware.</td></tr>
+    <tr><td>ADS.ADS1115(i2c)</td>
+        <td>"On that bus, there is an ADS1115." From here on, this object represents the chip.</td></tr>
+    <tr><td>AnalogIn(ads, ADS.P0)</td>
+        <td>The chip has four input channels. This picks channel 0, which is where the smoke
+            sensor's output is wired. Point a second <code>AnalogIn</code> at <code>ADS.P1</code>
+            and you could read a second analogue sensor with no extra hardware.</td></tr>
+    <tr><td>chan.value</td>
+        <td>The raw 16-bit count straight from the converter. Useful for thresholds, meaningless
+            as a physical quantity.</td></tr>
+    <tr><td>chan.voltage</td>
+        <td>The same measurement converted into actual volts. This is the one to log, because
+            volts mean something to a human reading your report.</td></tr>
+  </table>
+
+  <div class="tip"><b>Write down the resting value in clean air.</b> Smoke sensors have no absolute
+     scale — the reading only means something relative to their own baseline, which drifts with
+     humidity and with the sensor's age. Your alarm threshold has to be defined as a rise above
+     that baseline, not as a fixed number, or it will either never trigger or never stop.</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="s9">
+  <h2><span class="n">9</span>Closing the loop — and adding the LLM</h2>
+
+  <p>Every piece now exists: something that senses, something that acts, and a Pi in the middle.
+     Joining them into a loop takes about fifteen lines, and those fifteen lines are the actual
+     cyber-physical system. Everything after this point in the project is refinement.</p>
+
+  <div class="block"><span class="lang">python</span><button class="copy">copy</button>
+<pre>from w1thermsensor import W1ThermSensor
+from gpiozero import OutputDevice
+import time
+
+SETPOINT = 25.0
+
+sensors = W1ThermSensor.get_available_sensors()
+heater  = OutputDevice(17, active_high=True, initial_value=False)
+
+try:
+    while True:
+        temp = sensors[0].get_temperature()        # PERCEIVE
+        want_on = temp &lt; SETPOINT                  # DECIDE
+        if want_on != heater.is_active:            # ACT, only on change
+            heater.on() if want_on else heater.off()
+        print(f"{temp:6.2f} C  heater={'ON ' if heater.is_active else 'OFF'}")
+        time.sleep(2)
+except KeyboardInterrupt:
+    heater.off()
+    print("\nstopped, heater off")</pre></div>
+
+  <table class="lines">
+    <tr><th>Line</th><th>What it does</th></tr>
+    <tr><td>SETPOINT = 25.0</td>
+        <td>The goal, in one place at the top. Control code should always have its target named
+            and visible rather than buried as a bare number halfway down.</td></tr>
+    <tr><td>while True:</td>
+        <td>Run forever. A control system is not a task that finishes — it is a process that keeps
+            the world in a desired state, so it has no natural end.</td></tr>
+    <tr><td>temp = sensors[0].get_temperature()</td>
+        <td><b>Perceive.</b> Ask the first sensor what it reads, right now.</td></tr>
+    <tr><td>want_on = temp &lt; SETPOINT</td>
+        <td><b>Decide.</b> The entire policy, in one comparison: too cold means the heater should
+            be on. This single line is the piece the LLM will eventually replace.</td></tr>
+    <tr><td>if want_on != heater.is_active:</td>
+        <td><b>Only act when something needs to change.</b> Without this guard the relay would be
+            commanded every two seconds forever. Relays are mechanical and wear out, so needless
+            switching is real damage — and in a heating system, rapid on-off cycling ("chattering")
+            is hard on the equipment too. Compare desired state against actual state and act only
+            on the difference.</td></tr>
+    <tr><td>heater.on() if want_on else heater.off()</td>
+        <td><b>Act.</b> The loop touches the physical world.</td></tr>
+    <tr><td>time.sleep(2)</td>
+        <td>Pause before looking again. This sets the loop's tempo, and the right value depends on
+            the physics: rooms warm over minutes, so polling every two seconds is already generous.
+            Sampling far faster than the process can change just burns CPU and fills your database
+            with duplicates.</td></tr>
+    <tr><td>except KeyboardInterrupt: heater.off()</td>
+        <td><b>The most important three lines on this page.</b> Press Ctrl-C without this and your
+            program exits with the relay still energised and the heater still running — because
+            unlike a variable, the physical world does not reset when your process dies. Always
+            leave the hardware in a safe state on the way out.</td></tr>
+  </table>
+
+  <h3>Why there are two hardware files</h3>
+
+  <p>The project carries <code>real_hardware.py</code> and <code>fake_hardware.py</code>, and they
+     expose exactly the same four functions: <code>read_temperature()</code>,
+     <code>read_smoke()</code>, <code>set_heater()</code>, <code>set_buzzer()</code>. One talks to
+     the sensors and relay; the other invents plausible numbers in software.</p>
+
+  <p>Because the function names and arguments match, everything built on top — the agent, the
+     guardrails, the logging — cannot tell which one it is using. Switching between a simulated
+     room and the real one is a single import line:</p>
+
+  <div class="block"><span class="lang">python</span><button class="copy">copy</button>
+<pre># from fake_hardware import get_room     # simulated room
+from real_hardware import get_room         # the actual Pi</pre></div>
+
+  <div class="analogy">
+    <b>Analogy.</b> A flight simulator and a real cockpit with identical controls. The pilot's
+    training transfers completely, because the interface never changed — only what sits behind it
+    did. You develop against the simulator at your desk at midnight, then move to the real room
+    with no code changes at all.
+  </div>
+
+  <h3>Where the language model joins in</h3>
+
+  <p>Look back at the decision line: <code>want_on = temp &lt; SETPOINT</code>. That is a rule
+     someone wrote in advance, and it can only do the one thing it was written to do. It has no
+     answer for a sensor that has stopped reporting, for two sensors disagreeing by ten degrees,
+     or for smoke appearing while the heater runs.</p>
+
+  <p>The autonomous version replaces that one line with a question to a language model. The model
+     is given the current readings and a list of tools it is permitted to use — read the sensors,
+     set the heater, raise an alert — and it answers with which tool to call and a written reason.
+     The perceive and act beats are unchanged; only the brain in the middle is swapped.</p>
+
+  <div class="tip"><b>And this is precisely where the research question lives.</b> A rule can be
+     wrong, but it cannot be imaginative. A language model can command an actuator that does not
+     exist, invent a state the hardware does not support, or confidently diagnose a fault from a
+     reading it misread. That is why every action goes through a guarded tool layer that checks the
+     actuator is on the whitelist, checks the requested state is legal, demands a written reason,
+     and records the whole exchange in an append-only audit log. The model proposes; the guardrails
+     decide what is allowed to reach the relay.</div>
+
+  <p>Which brings the project back to where step 1 started, now with a sharper question. The loop is
+     still perceive, decide, act. What changed is that the deciding is no longer something we can
+     read and verify in advance — so the engineering effort moves from writing the rule to
+     constraining and observing whatever the model decides.</p>
+</section>
+
+<footer>D7065E — Cyber-Physical Systems · companion to <i>Pi_Test_Snippets.html</i></footer>
+
+</div>
+
+<script>
+document.querySelectorAll('button.copy').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    var code = btn.parentElement.querySelector('pre').innerText;
+    navigator.clipboard.writeText(code).then(function(){
+      var old = btn.textContent;
+      btn.textContent = 'copied';
+      setTimeout(function(){ btn.textContent = old; }, 1200);
+    });
+  });
+});
+</script>
+</body>
+</html>

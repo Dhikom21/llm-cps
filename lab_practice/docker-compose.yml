@@ -1,0 +1,39 @@
+# Infrastructure for levels 4+:
+#   - mosquitto    : MQTT broker  (sensors publish, consumer subscribes)
+#   - timescaledb  : Postgres + TimescaleDB extension  (time-series store)
+#
+# BuildSim runs from its own Makefile; agents and sensors run as native
+# Python so you can edit and re-run them quickly.
+
+services:
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: d7065e_mosquitto
+    ports:
+      - "1883:1883"   # MQTT
+      # - "9001:9001"   # WebSocket (optional) — disabled: host port already in use
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+    restart: unless-stopped
+
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    container_name: d7065e_timescaledb
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: building
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "building"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  timescale_data:

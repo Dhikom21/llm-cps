@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1300 880" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="d" markerWidth="8" markerHeight="8" refX="4" refY="4"><circle cx="4" cy="4" r="3" fill="#37474F"/></marker>
+  </defs>
+  <style>
+    .pin{stroke:#607d8b;stroke-width:1.5;}
+    .pl{font-size:11px;fill:#333;}
+    .pn{font-size:10px;fill:#90a4ae;}
+    .box{fill:#fff;stroke:#c7ced6;stroke-width:1.6;}
+    .term{font-size:12px;fill:#222;}
+    .wire{fill:none;stroke-width:2.4;}
+    .note{font-size:11px;fill:#666;}
+  </style>
+
+  <text x="650" y="30" text-anchor="middle" font-size="20" font-weight="700" fill="#1A237E">Pi 5 → hardware: pin-by-pin wiring</text>
+  <text x="650" y="50" text-anchor="middle" font-size="12.5" fill="#555">Signal pins wire straight to each part; power &amp; ground go via the 3.3 V / 5 V / GND rails.</text>
+
+  <!-- ============ legend ============ -->
+  <g transform="translate(430,64)">
+    <line x1="0" y1="6" x2="24" y2="6" class="wire" stroke="#FB8C00"/><text x="30" y="10" class="note">3.3 V</text>
+    <line x1="80" y1="6" x2="104" y2="6" class="wire" stroke="#E53935"/><text x="110" y="10" class="note">5 V</text>
+    <line x1="150" y1="6" x2="174" y2="6" class="wire" stroke="#333"/><text x="180" y="10" class="note">GND</text>
+    <line x1="235" y1="6" x2="259" y2="6" class="wire" stroke="#1E88E5"/><text x="265" y="10" class="note">GPIO signal</text>
+    <line x1="360" y1="6" x2="384" y2="6" class="wire" stroke="#8E24AA"/><text x="390" y="10" class="note">I²C</text>
+  </g>
+
+  <!-- ============ Pi header ============ -->
+  <rect x="70" y="110" width="185" height="470" rx="10" fill="#eef1f5" stroke="#b0bec5"/>
+  <text x="162" y="132" text-anchor="middle" font-size="12.5" font-weight="700" fill="#37474F">Pi 40-pin header</text>
+  <text x="162" y="150" text-anchor="middle" font-size="10" fill="#90a4ae">(pins 1–14; 15–40 unused)</text>
+
+  <!-- pins: two columns. left odd x=118, right even x=207. rows y=180+r*58 -->
+  <!-- row0 -->
+  <circle class="pin" cx="118" cy="180" r="12" fill="#FB8C00"/><text x="118" y="184" text-anchor="middle" font-size="10" fill="#fff" font-weight="700">1</text><text x="100" y="184" text-anchor="end" class="pl">3V3</text>
+  <circle class="pin" cx="207" cy="180" r="12" fill="#E53935"/><text x="207" y="184" text-anchor="middle" font-size="10" fill="#fff" font-weight="700">2</text><text x="225" y="184" class="pl">5V</text>
+  <!-- row1 -->
+  <circle class="pin" cx="118" cy="238" r="12" fill="#8E24AA"/><text x="118" y="242" text-anchor="middle" font-size="10" fill="#fff" font-weight="700">3</text><text x="100" y="242" text-anchor="end" class="pl">GPIO2 SDA</text>
+  <circle class="pin" cx="207" cy="238" r="12" fill="#cfd8dc"/><text x="207" y="242" text-anchor="middle" font-size="10" fill="#546e7a" font-weight="700">4</text><text x="225" y="242" class="pn">5V</text>
+  <!-- row2 -->
+  <circle class="pin" cx="118" cy="296" r="12" fill="#8E24AA"/><text x="118" y="300" text-anchor="middle" font-size="10" fill="#fff" font-weight="700">5</text><text x="100" y="300" text-anchor="end" class="pl">GPIO3 SCL</text>
+  <circle class="pin" cx="207" cy="296" r="12" fill="#333"/><text x="207" y="300" text-anchor="middle" font-size="10" fill="#fff" font-weight="700">6</text><text x="225" y="300" class="pl">GND</text>
+  <!-- row3 -->
+  <circle class="pin" cx="118" cy="354" r="12" fill="#1E88E5"/><text x="118" y="358" text-anchor="middle" font-size="10" fill="#fff" font-weight="700">7</text><text x="100" y="358" text-anchor="end" class="pl">GPIO4</text>
+  <circle class="pin" cx="207" cy="354" r="12" fill="#cfd8dc"/><text x="207" y="358" text-anchor="middle" font-size="10" fill="#546e7a" font-weight="700">8</text><text x="225" y="358" class="pn">GPIO14</text>
+  <!-- row4 -->
+  <circle class="pin" cx="118" cy="412" r="12" fill="#333"/><text x="118" y="416" text-anchor="middle" font-size="10" fill="#fff" font-weight="700">9</text><text x="100" y="416" text-anchor="end" class="pl">GND</text>
+  <circle class="pin" cx="207" cy="412" r="12" fill="#cfd8dc"/><text x="207" y="416" text-anchor="middle" font-size="10" fill="#546e7a" font-weight="700">10</text><text x="225" y="416" class="pn">GPIO15</text>
+  <!-- row5 -->
+  <circle class="pin" cx="118" cy="470" r="12" fill="#1E88E5"/><text x="118" y="474" text-anchor="middle" font-size="10" fill="#fff" font-weight="700">11</text><text x="100" y="474" text-anchor="end" class="pl">GPIO17</text>
+  <circle class="pin" cx="207" cy="470" r="12" fill="#cfd8dc"/><text x="207" y="474" text-anchor="middle" font-size="10" fill="#546e7a" font-weight="700">12</text><text x="225" y="474" class="pn">GPIO18</text>
+  <!-- row6 -->
+  <circle class="pin" cx="118" cy="528" r="12" fill="#1E88E5"/><text x="118" y="532" text-anchor="middle" font-size="10" fill="#fff" font-weight="700">13</text><text x="100" y="532" text-anchor="end" class="pl">GPIO27</text>
+  <circle class="pin" cx="207" cy="528" r="12" fill="#333"/><text x="207" y="532" text-anchor="middle" font-size="10" fill="#fff" font-weight="700">14</text><text x="225" y="532" class="pl">GND</text>
+
+  <!-- ============ power/ground rails ============ -->
+  <line x1="330" y1="165" x2="330" y2="770" class="wire" stroke="#FB8C00"/><text x="330" y="158" text-anchor="middle" class="note" fill="#e65100" font-weight="700">3V3</text>
+  <line x1="370" y1="165" x2="370" y2="770" class="wire" stroke="#E53935"/><text x="370" y="158" text-anchor="middle" class="note" fill="#c62828" font-weight="700">5V</text>
+  <line x1="410" y1="165" x2="410" y2="770" class="wire" stroke="#333"/><text x="410" y="158" text-anchor="middle" class="note" fill="#333" font-weight="700">GND</text>
+
+  <!-- pins -> rails -->
+  <path class="wire" stroke="#FB8C00" d="M130,180 L330,180"/><circle cx="330" cy="180" r="3.5" fill="#FB8C00"/>
+  <path class="wire" stroke="#E53935" d="M219,180 L370,180"/><circle cx="370" cy="180" r="3.5" fill="#E53935"/>
+  <path class="wire" stroke="#333" d="M219,296 L410,296"/><circle cx="410" cy="296" r="3.5" fill="#333"/>
+  <path class="wire" stroke="#333" d="M130,412 L410,412"/><circle cx="410" cy="412" r="3.5" fill="#333"/>
+  <path class="wire" stroke="#333" d="M219,528 L410,528"/><circle cx="410" cy="528" r="3.5" fill="#333"/>
+
+  <!-- ============ components ============ -->
+  <!-- DS18B20 -->
+  <rect class="box" x="650" y="150" width="300" height="120" rx="9"/>
+  <text x="668" y="174" font-size="14" font-weight="700" fill="#2E7D32">DS18B20 (temperature)</text>
+  <circle cx="650" cy="200" r="4" fill="#1E88E5"/><text x="662" y="204" class="term">DATA</text>
+  <circle cx="650" cy="228" r="4" fill="#FB8C00"/><text x="662" y="232" class="term">VDD (3.3 V)</text>
+  <circle cx="650" cy="256" r="4" fill="#333"/><text x="662" y="260" class="term">GND</text>
+  <text x="820" y="204" class="note" fill="#c62828">+4.7 kΩ: DATA↔3V3</text>
+
+  <!-- ADS1115 + smoke -->
+  <rect class="box" x="650" y="300" width="300" height="150" rx="9"/>
+  <text x="668" y="324" font-size="14" font-weight="700" fill="#00838f">ADS1115 + smoke sensor</text>
+  <circle cx="650" cy="350" r="4" fill="#8E24AA"/><text x="662" y="354" class="term">SDA</text>
+  <circle cx="650" cy="378" r="4" fill="#8E24AA"/><text x="662" y="382" class="term">SCL</text>
+  <circle cx="650" cy="406" r="4" fill="#FB8C00"/><text x="662" y="410" class="term">VDD (3.3 V)</text>
+  <circle cx="650" cy="434" r="4" fill="#333"/><text x="662" y="438" class="term">GND</text>
+  <text x="820" y="366" class="note">smoke A-out → ADS A0</text>
+  <text x="820" y="384" class="note">smoke VCC→3V3, GND→GND</text>
+
+  <!-- Relay -->
+  <rect class="box" x="650" y="480" width="300" height="120" rx="9"/>
+  <text x="668" y="504" font-size="14" font-weight="700" fill="#2E7D32">Relay (heater switch)</text>
+  <circle cx="650" cy="530" r="4" fill="#1E88E5"/><text x="662" y="534" class="term">SIG</text>
+  <circle cx="650" cy="558" r="4" fill="#E53935"/><text x="662" y="562" class="term">VCC (5 V)</text>
+  <circle cx="650" cy="586" r="4" fill="#333"/><text x="662" y="590" class="term">GND</text>
+  <text x="820" y="534" class="note">COM/NO → heat source</text>
+
+  <!-- Buzzer + transistor -->
+  <rect class="box" x="650" y="630" width="300" height="130" rx="9"/>
+  <text x="668" y="654" font-size="14" font-weight="700" fill="#00838f">Buzzer + NPN transistor</text>
+  <circle cx="650" cy="680" r="4" fill="#1E88E5"/><text x="662" y="684" class="term">GPIO27 → 1 kΩ → Base</text>
+  <circle cx="650" cy="708" r="4" fill="#E53935"/><text x="662" y="712" class="term">Buzzer + (5 V)</text>
+  <circle cx="650" cy="736" r="4" fill="#333"/><text x="662" y="740" class="term">Emitter → GND</text>
+  <text x="668" y="756" class="note">Buzzer − → transistor Collector</text>
+
+  <!-- ============ signal wires (pin -> component) ============ -->
+  <!-- GPIO4 (pin7) -> DS18B20 DATA -->
+  <path class="wire" stroke="#1E88E5" d="M130,354 L470,354 L470,200 L650,200"/>
+  <!-- SDA (pin3) -> ADS SDA -->
+  <path class="wire" stroke="#8E24AA" d="M130,238 L450,238 L450,350 L650,350"/>
+  <!-- SCL (pin5) -> ADS SCL -->
+  <path class="wire" stroke="#8E24AA" d="M130,296 L440,296 L440,378 L650,378"/>
+  <!-- GPIO17 (pin11) -> Relay SIG -->
+  <path class="wire" stroke="#1E88E5" d="M130,470 L490,470 L490,530 L650,530"/>
+  <!-- GPIO27 (pin13) -> Buzzer IN -->
+  <path class="wire" stroke="#1E88E5" d="M130,528 L500,528 L500,680 L650,680"/>
+
+  <!-- ============ rail -> component power/gnd taps ============ -->
+  <!-- DS18B20 VDD from 3V3, GND from GND -->
+  <path class="wire" stroke="#FB8C00" d="M330,228 L650,228"/><circle cx="330" cy="228" r="3.5" fill="#FB8C00"/>
+  <path class="wire" stroke="#333" d="M410,256 L650,256"/><circle cx="410" cy="256" r="3.5" fill="#333"/>
+  <!-- ADS VDD/GND -->
+  <path class="wire" stroke="#FB8C00" d="M330,406 L650,406"/><circle cx="330" cy="406" r="3.5" fill="#FB8C00"/>
+  <path class="wire" stroke="#333" d="M410,434 L650,434"/><circle cx="410" cy="434" r="3.5" fill="#333"/>
+  <!-- Relay VCC(5V)/GND -->
+  <path class="wire" stroke="#E53935" d="M370,558 L650,558"/><circle cx="370" cy="558" r="3.5" fill="#E53935"/>
+  <path class="wire" stroke="#333" d="M410,586 L650,586"/><circle cx="410" cy="586" r="3.5" fill="#333"/>
+  <!-- Buzzer 5V/GND -->
+  <path class="wire" stroke="#E53935" d="M370,708 L650,708"/><circle cx="370" cy="708" r="3.5" fill="#E53935"/>
+  <path class="wire" stroke="#333" d="M410,736 L650,736"/><circle cx="410" cy="736" r="3.5" fill="#333"/>
+
+  <!-- footer -->
+  <text x="70" y="820" class="note">Matches real_hardware.py: HEATER_PIN=17 (GPIO17), BUZZER_PIN=27 (GPIO27), DS18B20 on GPIO4, ADS1115 on I²C (GPIO2/3).</text>
+  <text x="70" y="840" class="note">Setup once: raspi-config → enable 1-Wire &amp; I²C · pip install gpiozero w1thermsensor adafruit-circuitpython-ads1x15</text>
+</svg>

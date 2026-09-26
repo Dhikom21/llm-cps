@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>BuildSim × ColonyOS chat demo</title>
+  <style>
+    :root {
+      --bg:        #0f1217;
+      --panel:     #181d25;
+      --border:    #2a313c;
+      --text:      #e6e9ef;
+      --muted:     #8590a3;
+      --accent:    #4ea1ff;
+      --you-bg:    #1e2b3d;
+      --agent-bg:  #14211b;
+      --err-bg:    #3a1b1b;
+    }
+    html, body { height: 100%; margin: 0; }
+    body {
+      display: flex;
+      font-family: -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    #viewer {
+      flex: 1;
+      border: 0;
+      background: #000;
+    }
+    #side {
+      width: 420px;
+      display: flex;
+      flex-direction: column;
+      padding: 1rem;
+      background: var(--panel);
+      border-left: 1px solid var(--border);
+    }
+    h2 {
+      margin: 0 0 0.5rem 0;
+      font-weight: 500;
+      font-size: 1.1rem;
+    }
+    .subtitle {
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-bottom: 1rem;
+    }
+    #log {
+      flex: 1;
+      overflow-y: auto;
+      margin-bottom: 0.75rem;
+      padding-right: 4px;
+    }
+    .msg {
+      padding: 0.6rem 0.8rem;
+      border-radius: 8px;
+      margin-bottom: 0.5rem;
+      font-size: 0.92rem;
+      line-height: 1.35;
+    }
+    .you   { background: var(--you-bg);   align-self: flex-end;   }
+    .agent { background: var(--agent-bg); }
+    .err   { background: var(--err-bg);   color: #ffb3b3;         }
+    .meta {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 0.25rem;
+    }
+    #input-row {
+      display: flex;
+      gap: 0.5rem;
+    }
+    #prompt {
+      flex: 1;
+      padding: 0.6rem 0.8rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: #0c0f14;
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+    #send {
+      padding: 0.6rem 1rem;
+      border-radius: 6px;
+      border: 0;
+      background: var(--accent);
+      color: white;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    #send:disabled { opacity: 0.5; cursor: wait; }
+    .hint {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 0.5rem;
+    }
+    .hint code {
+      background: #0c0f14;
+      padding: 0.1rem 0.3rem;
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body>
+
+  <iframe id="viewer" src="http://localhost:9090"></iframe>
+
+  <div id="side">
+    <h2>Ask the building</h2>
+    <div class="subtitle">
+      A prompt → ColonyOS function spec → LLM agent → BuildSim
+    </div>
+
+    <div id="log">
+      <div class="msg agent">
+        Hi. Try one of:
+        <ul style="margin: 0.4rem 0 0 0; padding-left: 1.2rem;">
+          <li><i>highlight room A109 in red</i></li>
+          <li><i>turn on level4-heater-A109-state</i></li>
+          <li><i>what is the temperature in A109?</i></li>
+          <li><i>find a route from A109 to A2306</i></li>
+        </ul>
+      </div>
+    </div>
+
+    <div id="input-row">
+      <input id="prompt" placeholder="type a request and press Enter" autofocus>
+      <button id="send">Send</button>
+    </div>
+    <div class="hint">
+      backend: <code id="backend-url">http://localhost:5000/chat</code>
+    </div>
+  </div>
+
+<script>
+  const BACKEND_URL = "http://localhost:5000/chat";
+  const log    = document.getElementById("log");
+  const input  = document.getElementById("prompt");
+  const send   = document.getElementById("send");
+
+  function add(text, cls, meta) {
+    const div = document.createElement("div");
+    div.className = "msg " + cls;
+    div.textContent = text;
+    if (meta) {
+      const m = document.createElement("div");
+      m.className = "meta";
+      m.textContent = meta;
+      div.appendChild(m);
+    }
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  async function submit() {
+    const prompt = input.value.trim();
+    if (!prompt) return;
+    add(prompt, "you");
+    input.value = "";
+    send.disabled = true;
+
+    const t0 = performance.now();
+    try {
+      const r = await fetch(BACKEND_URL, {
+        method:  "POST",
+        headers: {"Content-Type": "application/json"},
+        body:    JSON.stringify({prompt}),
+      });
+      const data = await r.json();
+      const dt = Math.round(performance.now() - t0);
+
+      if (data.status === "success") {
+        add(data.output || "(no output)", "agent", `process ${data.process_id?.slice(0, 12)}…  ${dt} ms`);
+      } else if (data.status === "failed") {
+        add(data.output || "failed", "err", data.process_id || "");
+      } else if (data.status === "timeout") {
+        add(data.output || "timeout", "err", data.process_id || "");
+      } else {
+        add(data.error || JSON.stringify(data), "err");
+      }
+    } catch (e) {
+      add("Network error: " + e.message, "err");
+    } finally {
+      send.disabled = false;
+      input.focus();
+    }
+  }
+
+  send.addEventListener("click", submit);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      submit();
+    }
+  });
+</script>
+
+</body>
+</html>

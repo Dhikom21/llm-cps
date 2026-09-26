@@ -1,0 +1,19 @@
+# Auto-configures the TimescaleDB connection so you don't click anything.
+apiVersion: 1
+
+datasources:
+  - name: TimescaleDB
+    uid: timescaledb
+    type: postgres
+    access: proxy
+    url: host.docker.internal:5432
+    user: postgres
+    secureJsonData:
+      password: postgres
+    jsonData:
+      database: building
+      sslmode: disable
+      postgresVersion: 1600
+      timescaledb: true
+    isDefault: true
+    editable: true

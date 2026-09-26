@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 700" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,3 L0,6 z" fill="#37474F"/></marker>
+    <marker id="ag" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,3 L0,6 z" fill="#2E7D32"/></marker>
+    <marker id="at" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,3 L0,6 z" fill="#00838F"/></marker>
+    <marker id="ao" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,3 L0,6 z" fill="#EF6C00"/></marker>
+  </defs>
+
+  <text x="620" y="32" text-anchor="middle" font-size="20" font-weight="700" fill="#1A237E">System overview — one LLM control hand acting on two worlds</text>
+  <text x="620" y="54" text-anchor="middle" font-size="13" fill="#555">Real edge hardware (Scenario A) and the BuildSim digital twin (Scenario B), both driven by the agent on Kubernetes</text>
+
+  <!-- ============ EDGE (left) ============ -->
+  <rect x="34" y="96" width="300" height="404" rx="12" fill="#E8F5E9" stroke="#2E7D32" stroke-width="2"/>
+  <text x="184" y="120" text-anchor="middle" font-size="13" font-weight="700" fill="#1B5E20">EDGE — REAL HARDWARE (Pi)</text>
+  <rect x="66" y="140" width="236" height="52" rx="8" fill="#fff" stroke="#2E7D32" stroke-width="1.4"/>
+  <text x="184" y="162" text-anchor="middle" font-size="12" font-weight="600" fill="#222">DS18B20 temp sensor</text>
+  <text x="184" y="180" text-anchor="middle" font-size="10.5" fill="#555">(+ optional smoke sensor)</text>
+  <rect x="66" y="250" width="236" height="52" rx="8" fill="#fff" stroke="#2E7D32" stroke-width="1.4"/>
+  <text x="184" y="272" text-anchor="middle" font-size="12" font-weight="600" fill="#222">Edge agent (MQTT)</text>
+  <text x="184" y="290" text-anchor="middle" font-size="10.5" fill="#555">publish / subscribe</text>
+  <rect x="66" y="410" width="236" height="52" rx="8" fill="#fff" stroke="#2E7D32" stroke-width="1.4"/>
+  <text x="184" y="432" text-anchor="middle" font-size="12" font-weight="600" fill="#222">Relay → Heater / Buzzer / LED</text>
+  <text x="184" y="450" text-anchor="middle" font-size="10.5" fill="#555">(actuator)</text>
+  <!-- straight internal arrows -->
+  <line x1="184" y1="192" x2="184" y2="248" stroke="#37474F" stroke-width="1.5" marker-end="url(#a)"/>
+  <line x1="184" y1="302" x2="184" y2="408" stroke="#37474F" stroke-width="1.5" marker-end="url(#a)"/>
+  <path d="M66,436 L50,436 L50,166 L66,166" fill="none" stroke="#EF6C00" stroke-width="1.6" stroke-dasharray="5,4" marker-end="url(#ao)"/>
+  <text x="43" y="310" font-size="9.5" fill="#EF6C00" transform="rotate(-90 43 310)">heat → temperature</text>
+
+  <!-- ============ KUBERNETES (center) ============ -->
+  <rect x="450" y="96" width="340" height="404" rx="12" fill="#E3F2FD" stroke="#1565C0" stroke-width="2" stroke-dasharray="7,5"/>
+  <text x="620" y="120" text-anchor="middle" font-size="13" font-weight="700" fill="#0D47A1">KUBERNETES CLUSTER (pods)</text>
+  <rect x="480" y="138" width="280" height="60" rx="9" fill="#EDE7F6" stroke="#6A1B9A" stroke-width="2"/>
+  <text x="620" y="163" text-anchor="middle" font-size="13" font-weight="700" fill="#4A148C">LLM Agent — the control hand</text>
+  <text x="620" y="182" text-anchor="middle" font-size="10.5" fill="#444">perceive → decide → act</text>
+  <rect x="480" y="222" width="280" height="96" rx="9" fill="#FFF3E0" stroke="#EF6C00" stroke-width="2"/>
+  <text x="620" y="244" text-anchor="middle" font-size="12.5" font-weight="700" fill="#E65100">Guarded control tools</text>
+  <text x="620" y="263" text-anchor="middle" font-size="10.5" fill="#444">read_sensors, query_history,</text>
+  <text x="620" y="279" text-anchor="middle" font-size="10.5" fill="#444">set_actuator, create_alert, find_route, highlight</text>
+  <text x="620" y="300" text-anchor="middle" font-size="10.5" font-weight="600" fill="#E65100">whitelist + reason + audit</text>
+  <rect x="480" y="342" width="280" height="140" rx="9" fill="#fff" stroke="#1565C0" stroke-width="1.4"/>
+  <text x="620" y="364" text-anchor="middle" font-size="11.5" font-weight="700" fill="#0D47A1">Cluster services</text>
+  <text x="620" y="386" text-anchor="middle" font-size="11" fill="#333">Mosquitto (MQTT broker)</text>
+  <text x="620" y="406" text-anchor="middle" font-size="11" fill="#333">Consumer → TimescaleDB</text>
+  <text x="620" y="426" text-anchor="middle" font-size="11" fill="#333">(readings + audit log)</text>
+  <text x="620" y="446" text-anchor="middle" font-size="11" fill="#333">Grafana (dashboard)</text>
+  <text x="620" y="468" text-anchor="middle" font-size="9.5" fill="#777">the agent perceives from here and logs here</text>
+  <line x1="620" y1="198" x2="620" y2="220" stroke="#6A1B9A" stroke-width="1.5" marker-end="url(#a)"/>
+  <line x1="620" y1="318" x2="620" y2="340" stroke="#455A64" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <!-- ============ TWIN (right) ============ -->
+  <rect x="906" y="96" width="300" height="404" rx="12" fill="#E0F7FA" stroke="#00838F" stroke-width="2"/>
+  <text x="1056" y="120" text-anchor="middle" font-size="13" font-weight="700" fill="#006064">BUILDSIM — DIGITAL TWIN (3D)</text>
+  <rect x="936" y="146" width="240" height="230" rx="6" fill="#fff" stroke="#00838F" stroke-width="1.4"/>
+  <line x1="1056" y1="146" x2="1056" y2="376" stroke="#B2DFDB"/>
+  <line x1="936" y1="261" x2="1176" y2="261" stroke="#B2DFDB"/>
+  <text x="990" y="168" text-anchor="middle" font-size="10.5" font-weight="700" fill="#006064">A109 (real-linked)</text>
+  <path d="M1120,206 q-12,-22 5,-34 q-3,15 10,17 q14,3 7,22 z" fill="#E53935"/>
+  <path d="M1126,206 q-5,-10 3,-15 q-1,8 5,8 z" fill="#FFB300"/>
+  <ellipse cx="1145" cy="196" rx="13" ry="7" fill="#B0BEC5" opacity="0.7"/>
+  <text x="1128" y="238" text-anchor="middle" font-size="9.5" fill="#E53935" font-weight="600">fire + smoke</text>
+  <circle cx="1118" cy="176" r="2.2" fill="#1E88E5"/><circle cx="1128" cy="173" r="2.2" fill="#1E88E5"/><circle cx="1138" cy="176" r="2.2" fill="#1E88E5"/>
+  <text x="1128" y="166" text-anchor="middle" font-size="8.5" fill="#1565C0">sprinkler</text>
+  <rect x="1051" y="300" width="9" height="22" fill="#8D6E63"/>
+  <text x="1056" y="340" text-anchor="middle" font-size="9" fill="#5D4037">door → unlocked</text>
+  <path d="M1122,270 C1070,300 1000,318 966,330" fill="none" stroke="#2E7D32" stroke-width="2.2" stroke-dasharray="6,4" marker-end="url(#ag)"/>
+  <rect x="944" y="322" width="40" height="20" rx="4" fill="#2E7D32"/>
+  <text x="964" y="336" text-anchor="middle" font-size="9" font-weight="700" fill="#fff">EXIT</text>
+  <text x="1056" y="398" text-anchor="middle" font-size="10" fill="#006064">rooms · fire/smoke · sprinkler · doors · routes</text>
+  <text x="1056" y="416" text-anchor="middle" font-size="10" fill="#006064">— all update live over WebSocket</text>
+
+  <!-- ============ CLEAN ZONE-TO-ZONE ARROWS ============ -->
+  <!-- EDGE <-> K8s : two parallel horizontal arrows, no crossing -->
+  <line x1="334" y1="255" x2="448" y2="255" stroke="#37474F" stroke-width="2.2" marker-end="url(#a)"/>
+  <text x="391" y="246" text-anchor="middle" font-size="10.5" fill="#37474F">sensor readings (MQTT)</text>
+  <line x1="448" y1="300" x2="334" y2="300" stroke="#2E7D32" stroke-width="2.2" marker-end="url(#ag)"/>
+  <text x="391" y="316" text-anchor="middle" font-size="10.5" font-weight="600" fill="#2E7D32">heater command (MQTT)</text>
+  <text x="391" y="150" text-anchor="middle" font-size="11.5" font-weight="700" fill="#2E7D32">Scenario A — real</text>
+
+  <!-- K8s -> TWIN : single horizontal arrow -->
+  <line x1="790" y1="270" x2="904" y2="270" stroke="#00838F" stroke-width="2.4" marker-end="url(#at)"/>
+  <text x="847" y="252" text-anchor="middle" font-size="10.5" font-weight="600" fill="#00838F">fire response</text>
+  <text x="847" y="292" text-anchor="middle" font-size="9.5" fill="#00838F">alert · sprinkler · doors · route (REST)</text>
+  <text x="847" y="150" text-anchor="middle" font-size="11.5" font-weight="700" fill="#00838F">Scenario B — twin</text>
+
+  <!-- EDGE -> TWIN : clean dashed arrow along the bottom, below all zones -->
+  <path d="M184,500 L184,540 L1056,540 L1056,500" fill="none" stroke="#00838F" stroke-width="1.8" stroke-dasharray="6,4" marker-end="url(#at)"/>
+  <text x="620" y="560" text-anchor="middle" font-size="10.5" fill="#00838F">the real sensor also drives room A109 in the twin</text>
+
+  <!-- legend -->
+  <rect x="34" y="590" width="1172" height="96" rx="8" fill="#FAFAFA" stroke="#B0BEC5" stroke-width="1"/>
+  <text x="48" y="612" font-size="12" font-weight="700" fill="#333">Reading the arrows</text>
+  <text x="48" y="632" font-size="11.5" fill="#444">Scenario A (real): edge sends sensor readings into the cluster; the agent decides and sends a heater command back — a real closed loop.</text>
+  <text x="48" y="651" font-size="11.5" fill="#444">Scenario B (twin): the agent sends the fire response (alert, sprinkler, unlock doors, evacuation route) to the BuildSim twin, rendered live in 3D.</text>
+  <text x="48" y="672" font-size="11.5" fill="#444">The same real sensor also drives room A109 in the twin (dashed). Every perception and action is written to the audit log.</text>
+</svg>

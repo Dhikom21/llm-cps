@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1140 720" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="arr" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 z" fill="#37474F"/>
+    </marker>
+    <marker id="arrO" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 z" fill="#EF6C00"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="570" y="34" text-anchor="middle" font-size="22" font-weight="700" fill="#1A237E">Autonomous Cyber-Physical System on Kubernetes — LLM as the Control Hand</text>
+  <text x="570" y="56" text-anchor="middle" font-size="13" fill="#555">Closed loop: perceive (sensor) → decide (LLM) → act (actuator), guarded by whitelist + audit</text>
+
+  <!-- ================= LAYER 0: EDGE ================= -->
+  <rect x="34" y="86" width="300" height="500" rx="12" fill="#E8F5E9" stroke="#2E7D32" stroke-width="2"/>
+  <text x="184" y="112" text-anchor="middle" font-size="14" font-weight="700" fill="#1B5E20">LAYER 0 — EDGE (Raspberry Pi)</text>
+
+  <rect x="72" y="132" width="224" height="58" rx="8" fill="#fff" stroke="#2E7D32" stroke-width="1.5"/>
+  <text x="184" y="157" text-anchor="middle" font-size="13" font-weight="600" fill="#222">DS18B20</text>
+  <text x="184" y="175" text-anchor="middle" font-size="12" fill="#444">temperature sensor</text>
+
+  <rect x="72" y="258" width="224" height="96" rx="8" fill="#fff" stroke="#2E7D32" stroke-width="1.5"/>
+  <text x="184" y="283" text-anchor="middle" font-size="13" font-weight="600" fill="#222">Edge agent</text>
+  <text x="184" y="302" text-anchor="middle" font-size="11.5" fill="#444">driver seam: fake ↔ real GPIO</text>
+  <text x="184" y="320" text-anchor="middle" font-size="11.5" fill="#444">MQTT publish / subscribe</text>
+  <text x="184" y="338" text-anchor="middle" font-size="11.5" fill="#444">read_temperature() / set_heater()</text>
+
+  <rect x="72" y="470" width="224" height="70" rx="8" fill="#fff" stroke="#2E7D32" stroke-width="1.5"/>
+  <text x="184" y="500" text-anchor="middle" font-size="13" font-weight="600" fill="#222">Relay → Heater</text>
+  <text x="184" y="520" text-anchor="middle" font-size="12" fill="#444">(actuator)</text>
+
+  <!-- internal edge wiring -->
+  <line x1="184" y1="190" x2="184" y2="256" stroke="#37474F" stroke-width="1.6" marker-end="url(#arr)"/>
+  <text x="196" y="228" font-size="10.5" fill="#37474F">read temp</text>
+  <line x1="184" y1="354" x2="184" y2="468" stroke="#37474F" stroke-width="1.6" marker-end="url(#arr)"/>
+  <text x="196" y="418" font-size="10.5" fill="#37474F">command</text>
+
+  <!-- physical loop (heat -> temperature) on left margin -->
+  <path d="M72,505 L52,505 L52,161 L72,161" fill="none" stroke="#EF6C00" stroke-width="1.8" stroke-dasharray="5,4" marker-end="url(#arrO)"/>
+  <text x="44" y="340" font-size="10.5" fill="#EF6C00" transform="rotate(-90 44 340)">physical: heat → temperature</text>
+
+  <!-- ================= LAYER 1: KUBERNETES ================= -->
+  <rect x="384" y="86" width="722" height="520" rx="12" fill="#E3F2FD" stroke="#1565C0" stroke-width="2" stroke-dasharray="7,5"/>
+  <text x="745" y="112" text-anchor="middle" font-size="14" font-weight="700" fill="#0D47A1">LAYER 1 — KUBERNETES CLUSTER (pods)</text>
+
+  <!-- broker -->
+  <rect x="416" y="140" width="196" height="58" rx="8" fill="#fff" stroke="#1565C0" stroke-width="1.5"/>
+  <text x="514" y="165" text-anchor="middle" font-size="13" font-weight="600" fill="#222">Mosquitto</text>
+  <text x="514" y="183" text-anchor="middle" font-size="12" fill="#444">MQTT broker</text>
+
+  <!-- consumer -->
+  <rect x="416" y="240" width="196" height="58" rx="8" fill="#fff" stroke="#1565C0" stroke-width="1.5"/>
+  <text x="514" y="265" text-anchor="middle" font-size="13" font-weight="600" fill="#222">Consumer</text>
+  <text x="514" y="283" text-anchor="middle" font-size="12" fill="#444">MQTT → database</text>
+
+  <!-- db -->
+  <rect x="416" y="340" width="196" height="72" rx="8" fill="#FFFDE7" stroke="#F9A825" stroke-width="1.6"/>
+  <text x="514" y="366" text-anchor="middle" font-size="13" font-weight="600" fill="#222">TimescaleDB</text>
+  <text x="514" y="384" text-anchor="middle" font-size="11.5" fill="#444">readings (hot store)</text>
+  <text x="514" y="401" text-anchor="middle" font-size="11.5" fill="#444">decisions (audit log)</text>
+
+  <!-- grafana -->
+  <rect x="416" y="470" width="196" height="56" rx="8" fill="#fff" stroke="#1565C0" stroke-width="1.5"/>
+  <text x="514" y="495" text-anchor="middle" font-size="13" font-weight="600" fill="#222">Grafana</text>
+  <text x="514" y="513" text-anchor="middle" font-size="12" fill="#444">dashboard</text>
+
+  <!-- LLM agent -->
+  <rect x="720" y="150" width="356" height="96" rx="10" fill="#EDE7F6" stroke="#6A1B9A" stroke-width="2"/>
+  <text x="898" y="182" text-anchor="middle" font-size="15" font-weight="700" fill="#4A148C">LLM Agent — the control hand</text>
+  <text x="898" y="204" text-anchor="middle" font-size="12" fill="#444">perceive → decide → act (autonomous loop)</text>
+  <text x="898" y="224" text-anchor="middle" font-size="12" fill="#444">self-hosted model (vLLM / Ollama)</text>
+
+  <!-- guarded tools -->
+  <rect x="720" y="300" width="356" height="120" rx="10" fill="#FFF3E0" stroke="#EF6C00" stroke-width="2"/>
+  <text x="898" y="328" text-anchor="middle" font-size="14" font-weight="700" fill="#E65100">Guarded control tools</text>
+  <text x="898" y="350" text-anchor="middle" font-size="12" fill="#444">perceive: read_sensors, query_history</text>
+  <text x="898" y="368" text-anchor="middle" font-size="12" fill="#444">act: set_actuator, create_alert</text>
+  <text x="898" y="392" text-anchor="middle" font-size="12" font-weight="600" fill="#E65100">guardrails: whitelist + reason + audit</text>
+
+  <!-- ============ arrows within/around cluster ============ -->
+  <!-- edge agent -> broker (publish sensors) -->
+  <path d="M296,290 L416,175" fill="none" stroke="#37474F" stroke-width="1.8" marker-end="url(#arr)"/>
+  <text x="330" y="222" font-size="10.5" fill="#37474F">publish sensors/#</text>
+  <!-- broker -> edge agent (actuator command) -->
+  <path d="M416,190 L296,320" fill="none" stroke="#37474F" stroke-width="1.8" marker-end="url(#arr)"/>
+  <text x="322" y="300" font-size="10.5" fill="#37474F">actuators/# cmd</text>
+
+  <!-- broker -> consumer -> db -> grafana -->
+  <line x1="514" y1="198" x2="514" y2="238" stroke="#37474F" stroke-width="1.8" marker-end="url(#arr)"/>
+  <line x1="514" y1="298" x2="514" y2="338" stroke="#37474F" stroke-width="1.8" marker-end="url(#arr)"/>
+  <line x1="514" y1="412" x2="514" y2="468" stroke="#37474F" stroke-width="1.8" marker-end="url(#arr)"/>
+
+  <!-- agent -> tools -->
+  <line x1="898" y1="246" x2="898" y2="300" stroke="#6A1B9A" stroke-width="1.8" marker-end="url(#arr)"/>
+  <text x="906" y="276" font-size="10.5" fill="#6A1B9A">invoke tools</text>
+
+  <!-- tools -> db (perceive: read) -->
+  <path d="M720,350 L614,376" fill="none" stroke="#455A64" stroke-width="1.8" marker-end="url(#arr)"/>
+  <text x="626" y="352" font-size="10.5" fill="#455A64">read_sensors / query_history</text>
+  <!-- tools -> db (write audit) -->
+  <path d="M720,398 L614,400" fill="none" stroke="#455A64" stroke-width="1.8" marker-end="url(#arr)"/>
+  <text x="640" y="416" font-size="10.5" fill="#455A64">audit log</text>
+
+  <!-- tools -> broker (set_actuator) -->
+  <path d="M720,330 C660,300 600,240 612,205" fill="none" stroke="#EF6C00" stroke-width="1.8" marker-end="url(#arrO)"/>
+  <text x="626" y="270" font-size="10.5" fill="#EF6C00">set_actuator → actuators/#</text>
+
+  <!-- Legend -->
+  <rect x="384" y="626" width="722" height="72" rx="8" fill="#FAFAFA" stroke="#B0BEC5" stroke-width="1"/>
+  <text x="398" y="648" font-size="12" font-weight="700" fill="#333">The closed loop</text>
+  <text x="398" y="668" font-size="11.5" fill="#444">1. sensor → MQTT → consumer → TimescaleDB   2. LLM agent reads state via guarded tools   3. agent decides</text>
+  <text x="398" y="686" font-size="11.5" fill="#444">4. set_actuator → MQTT → edge agent → relay → heater   5. heat changes temperature → next sensor reading (dashed orange)</text>
+</svg>

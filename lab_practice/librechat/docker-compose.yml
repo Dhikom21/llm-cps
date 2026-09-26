@@ -1,0 +1,39 @@
+# LibreChat: a chat UI in front of your vLLM Gemma, wired to the Level 7 MCP tools.
+# Separate compose (your other docker-compose files are untouched).
+#
+# Run:  docker compose up -d      (from this folder)
+# Open: http://localhost:3080     (register a local account on first visit)
+#
+# It reaches the MCP server on the HOST at host.docker.internal:8009 (you run
+# `TRANSPORT=sse python mcp_level7_server.py` on the host), and reaches your
+# vLLM Gemma over the network (VPN) at carbon.eislab.se:8000.
+
+services:
+  librechat:
+    image: ghcr.io/danny-avila/librechat:latest
+    container_name: librechat
+    ports:
+      - "3080:3080"
+    depends_on:
+      - mongodb
+    env_file:
+      - .env
+    environment:
+      - HOST=0.0.0.0
+      - MONGO_URI=mongodb://mongodb:27017/LibreChat
+      - CONFIG_PATH=/app/librechat.yaml
+    volumes:
+      - ./librechat.yaml:/app/librechat.yaml
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo:7
+    container_name: librechat_mongo
+    volumes:
+      - mongo_data:/data/db
+    restart: unless-stopped
+
+volumes:
+  mongo_data:
