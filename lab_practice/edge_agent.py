@@ -55,11 +55,17 @@ HEAT_EQ_ID, HEAT_ST_ID    = "pi-heater-A109", "pi-heater-A109-state"
 ALARM_EQ_ID, ALARM_ST_ID  = "pi-alarm-A109", "pi-alarm-A109-state"
 TOPIC = f"sensors/{LEVEL}/{ROOM}/temperature"
 
-# comfort band with hysteresis — heat below LO, stop above HI.
+# Comfort band with hysteresis — heat below LO, stop above HI.
 # The gap between them is what stops the relay chattering around a setpoint.
-BAND_LO, BAND_HI = 22.0, 24.0
-SMOKE_THRESHOLD  = 1.0        # volts; clean air sits near 0.1
-CYCLE_S          = 2.0
+#
+# Settable from the environment so you can retune without editing, pushing and
+# pulling the file. For a hand-warming demo, put the band just ABOVE ambient:
+#     export BAND_LO=24 BAND_HI=25
+# so the heater rests ON and a pinch is what switches it OFF.
+BAND_LO = float(os.environ.get("BAND_LO", "22.0"))
+BAND_HI = float(os.environ.get("BAND_HI", "24.0"))
+SMOKE_THRESHOLD = float(os.environ.get("SMOKE_THRESHOLD", "1.0"))  # volts
+CYCLE_S         = float(os.environ.get("CYCLE_S", "2.0"))
 HTTP_TIMEOUT     = 2.0
 
 # ---------------- optional MQTT ----------------
@@ -164,8 +170,8 @@ def stop(*_):
 signal.signal(signal.SIGINT, stop)
 signal.signal(signal.SIGTERM, stop)
 
-print(f"edge agent running: band {BAND_LO}-{BAND_HI} C, cycle {CYCLE_S}s. "
-      f"Ctrl-C to stop.")
+print(f"edge agent running: band {BAND_LO}-{BAND_HI} C, "
+      f"smoke threshold {SMOKE_THRESHOLD} V, cycle {CYCLE_S}s. Ctrl-C to stop.")
 
 heater_on = False
 buzzer_on = False
