@@ -1,184 +1,150 @@
 """
-real_hardware.py — drives the ACTUAL Raspberry Pi hardware.
+real_hardware.py — drives the ACTUAL Raspberry Pi hardware, for several rooms.
 
-Exposes the same public methods as fake_hardware.FakeRoom, so swapping the
-edge agent from simulation to hardware is a single import change:
-
-    import real_hardware as hw
-    room = hw.get_room()
+Same public interface as fake_hardware.FakeBuilding, so the agents move between
+simulation and reality with one import line.
 
 --------------------------------------------------------------------------
-HYBRID SENSING — why smoke is not read from a pin
+What is real and what is not
 --------------------------------------------------------------------------
-Temperature and both actuators are REAL, on this Pi.
+    A109   temperature: REAL DS18B20   heater: REAL relay   buzzer: REAL piezo
+    A108   temperature: REAL DS18B20   heater: virtual      buzzer: virtual
+    both   smoke:       from the twin (no ADC on the Pi)
 
-Smoke is NOT. The SEN0570 smoke sensor has an ANALOG output and the
-Raspberry Pi has no analog inputs at all, so reading it needs an external
-ADC (ADS1115) that we do not have. Rather than stub the value out, this
-driver reads the smoke level from the BuildSim digital twin over REST.
+Two real sensors share one 1-Wire bus; rooms.py maps each room to a specific
+64-bit sensor ID rather than a position in a list, so a rewire cannot silently
+swap the rooms.
 
-That gives the project a genuine cross-layer path:
-
-    simulated fire in the twin  ->  read_smoke() here  ->  REAL buzzer beeps
-
-A cyber-side event producing a physical effect on the desk. It is also the
-setup for the H-taxonomy experiments: the agent can be induced to sound a
-real alarm from a fabricated reading.
+A108's actuators are virtual: state is tracked and mirrored to the twin, but
+nothing physically moves. That asymmetry is deliberate — see rooms.py.
 
 --------------------------------------------------------------------------
-One-time Pi setup
+Pi setup
 --------------------------------------------------------------------------
-    sudo raspi-config nonint do_onewire 0      # enable 1-Wire
+    sudo raspi-config nonint do_onewire 0
     sudo reboot
     sudo apt install -y python3-gpiozero python3-w1thermsensor
     pip install requests --break-system-packages
 
---------------------------------------------------------------------------
-Wiring as actually built (see CPS_Pin_Wiring.png)
---------------------------------------------------------------------------
-    DS18B20 x2:  DATA -> GPIO4 (pin 7) | VDD -> 3.3V (pin 1) | GND -> pin 9
-                 one 4.7k resistor between DATA and VDD for the whole bus
-    Relay:       SIG  -> GPIO17 (pin 11) | VCC -> 5V (pin 2) | GND -> pin 6
-    Piezo:       leg1 -> GPIO27 (pin 13) | leg2 -> GND (pin 20)
-                 driven with PWM - a steady HIGH is silent on a piezo
-    Smoke:       not wired (see above) - comes from BuildSim
-
---------------------------------------------------------------------------
-Pointing the Pi at BuildSim
---------------------------------------------------------------------------
-BuildSim runs on the laptop, not on the Pi, so localhost is wrong here.
-Set the laptop's address on the project network before running:
-
-    export BUILDSIM_URL=http://192.168.1.44:9090
-    python3 real_hardware.py
-
-If BuildSim is unreachable the driver degrades gracefully: read_smoke()
-returns the clean-air baseline and warns once, so the control loop keeps
-running on real temperature instead of crashing.
+Wiring as built:
+    DS18B20 x2   DATA -> GPIO4 (pin 7), VDD -> 3.3V (pin 1), GND -> pin 9
+                 one 4.7k pull-up between DATA and VDD for the whole bus
+    Relay        SIG  -> GPIO17 (pin 11), VCC -> 5V (pin 2), GND -> pin 6
+    Piezo        leg  -> GPIO27 (pin 13), leg -> GND (pin 20)
+                 driven with PWM; a steady HIGH is silent on a piezo
 """
-import os
 import time
 
-import requests
 from gpiozero import OutputDevice, PWMOutputDevice
 from w1thermsensor import W1ThermSensor
 
-# ---------------- pins ----------------
-HEATER_PIN = 17          # BCM numbering (physical pin 11)
-BUZZER_PIN = 27          # BCM numbering (physical pin 13)
-BUZZER_HZ  = 2000        # tone frequency; a piezo needs switching, not DC
+import rooms
+import twin
 
-# ---------------- BuildSim (smoke source) ----------------
-BUILDSIM     = os.environ.get("BUILDSIM_URL", "http://localhost:9090")
-SMOKE_EQ_ID  = "pi-smoke-A109"
-SMOKE_VAL_ID = "pi-smoke-A109-val"
-ROOM, LEVEL  = "A109", "level0"
-
-CLEAN_AIR_V  = 0.10      # baseline volts in clean air, matching fake_hardware
-HTTP_TIMEOUT = 2.0
+HEATER_PIN = 17          # BCM (physical pin 11)
+BUZZER_PIN = 27          # BCM (physical pin 13)
+BUZZER_HZ  = 2000        # a piezo needs switching, not DC
 
 
-class RealRoom:
+class RealBuilding:
     def __init__(self):
-        # --- actuators: both real ---
-        self._heater = OutputDevice(HEATER_PIN, active_high=True, initial_value=False)
-        self._buzzer = PWMOutputDevice(BUZZER_PIN, frequency=BUZZER_HZ, initial_value=0)
+        # ---- the single set of real actuators, owned by A109 ----
+        self._heater = OutputDevice(HEATER_PIN, active_high=True,
+                                    initial_value=False)
+        self._buzzer = PWMOutputDevice(BUZZER_PIN, frequency=BUZZER_HZ,
+                                       initial_value=0)
 
-        # --- temperature: real, 1-Wire ---
-        self._sensors = W1ThermSensor.get_available_sensors()
-        if not self._sensors:
+        # ---- temperature sensors, matched to rooms by ID ----
+        found = {s.id: s for s in W1ThermSensor.get_available_sensors()}
+        if not found:
             raise RuntimeError(
-                "no DS18B20 found on the 1-Wire bus. Check: ls /sys/bus/w1/devices/ "
+                "no DS18B20 on the 1-Wire bus. Check: ls /sys/bus/w1/devices/ "
                 "(you should see one or more 28-* entries)")
-        print(f"[hw] {len(self._sensors)} DS18B20 found: "
-              f"{[s.id for s in self._sensors]}")
 
-        # --- smoke: from the digital twin ---
-        self._twin_warned = False
-        self._register_smoke_in_twin()
+        self._sensors = {}
+        for room in rooms.names():
+            sid = rooms.ROOMS[room]["sensor_id"]
+            if sid in found:
+                self._sensors[room] = found[sid]
+            else:
+                # Loud, not silent. A room reading a sensor that is not there
+                # would otherwise show as a plausible-looking frozen number.
+                print(f"[hw] WARNING: {room} expects sensor {sid}, not found. "
+                      f"Available: {sorted(found)}. "
+                      f"Set SENSOR_{room}=<id> to correct this.")
 
-    # ---------- BuildSim plumbing ----------
-    def _register_smoke_in_twin(self):
-        """Create the smoke sensor in BuildSim if it isn't there yet, so the
-        twin always has something to read and inject_fire.py has a target."""
-        try:
-            requests.post(f"{BUILDSIM}/api/equipment", timeout=HTTP_TIMEOUT, json={
-                "id": SMOKE_EQ_ID, "name": "Pi Smoke (simulated)",
-                "type": "smoke_detector", "category": "safety",
-                "level": LEVEL, "room": ROOM, "status": "running"})
-            requests.post(f"{BUILDSIM}/api/equipment/{SMOKE_EQ_ID}/sensors",
-                          timeout=HTTP_TIMEOUT, json={
-                              "id": SMOKE_VAL_ID, "name": "Smoke",
-                              "type": "smoke_level", "data_type": "text",
-                              "unit": "V", "value": f"{CLEAN_AIR_V:.3f}"})
-            requests.post(f"{BUILDSIM}/api/equipment/notify", timeout=HTTP_TIMEOUT)
-            print(f"[hw] smoke sensor registered in twin at {BUILDSIM}")
-        except requests.RequestException as e:
-            self._warn_twin(e)
+        print(f"[hw] sensors mapped: "
+              f"{ {r: s.id for r, s in self._sensors.items()} }")
 
-    def _warn_twin(self, err):
-        if not self._twin_warned:
-            print(f"[hw] BuildSim unreachable at {BUILDSIM} ({err}) — "
-                  f"smoke will report clean air. Set BUILDSIM_URL to the "
-                  f"laptop's IP on the project network.")
-            self._twin_warned = True
+        # ---- actuator state, including the virtual ones ----
+        self._state = {room: {"heater": False, "buzzer": False}
+                       for room in rooms.names()}
 
-    # ---------- shared interface (identical to FakeRoom) ----------
-    def read_temperature(self):
-        """Degrees C from the first DS18B20. REAL."""
-        return round(self._sensors[0].get_temperature(), 2)
+        for room in rooms.names():
+            twin.register_room(room)
 
-    def read_smoke(self):
-        """Volts, higher = more smoke. Comes from the BuildSim twin, not a pin."""
-        try:
-            r = requests.get(f"{BUILDSIM}/api/equipment/{SMOKE_EQ_ID}",
-                             timeout=HTTP_TIMEOUT)
-            r.raise_for_status()
-            for s in r.json().get("sensors", []):
-                if s.get("id") == SMOKE_VAL_ID:
-                    return round(float(s.get("value", CLEAN_AIR_V)), 3)
-        except (requests.RequestException, ValueError, TypeError) as e:
-            self._warn_twin(e)
-        return CLEAN_AIR_V
+    # ---------- shared interface (identical to FakeBuilding) ----------
+    def rooms(self):
+        return rooms.names()
 
-    def set_heater(self, on):
-        """REAL — the relay clicks."""
-        self._heater.on() if on else self._heater.off()
+    def read_temperature(self, room):
+        """REAL. Returns None if that room's sensor is missing — None is
+        honest, whereas a made-up number would be acted upon."""
+        sensor = self._sensors.get(room)
+        if sensor is None:
+            return None
+        return round(sensor.get_temperature(), 2)
 
-    def set_buzzer(self, on):
-        """REAL — PWM at 50% duty makes the piezo sound; 0 silences it."""
-        self._buzzer.value = 0.5 if on else 0.0
+    def read_smoke(self, room):
+        """From the twin. No ADC on the Pi, so this is the simulated value."""
+        return twin.read_smoke(room)
 
-    # ---------- extras (not part of the shared interface) ----------
-    def read_all_temperatures(self):
-        """Every DS18B20 as {sensor_id: degC} — useful once both are placed."""
-        return {s.id: round(s.get_temperature(), 2) for s in self._sensors}
+    def set_heater(self, room, on):
+        self._state[room]["heater"] = bool(on)
+        if rooms.is_real(room, "heater"):
+            self._heater.on() if on else self._heater.off()
+
+    def set_buzzer(self, room, on):
+        self._state[room]["buzzer"] = bool(on)
+        if rooms.is_real(room, "buzzer"):
+            self._buzzer.value = 0.5 if on else 0.0
+
+    def state(self, room):
+        s = self._state[room]
+        return {"heater": "on" if s["heater"] else "off",
+                "buzzer": "on" if s["buzzer"] else "off"}
 
     def close(self):
-        """Leave the hardware safe. Always call this on the way out."""
+        """Leave the hardware safe. A variable disappears when the process
+        ends; an energised relay does not."""
         self._buzzer.value = 0.0
         self._heater.off()
+        for room in rooms.names():
+            self._state[room] = {"heater": False, "buzzer": False}
 
 
-def get_room():
-    """Factory so the edge agent can stay driver-agnostic: hw.get_room()."""
-    return RealRoom()
+def get_building():
+    return RealBuilding()
 
 
 if __name__ == "__main__":
-    r = get_room()
+    b = get_building()
     try:
-        print("temps:", r.read_all_temperatures())
+        for room in b.rooms():
+            print(f"{room}: temp={b.read_temperature(room)} "
+                  f"smoke={b.read_smoke(room)} state={b.state(room)}")
 
-        print("Heater ON for 5 s (listen for the relay click) ...")
-        r.set_heater(True); time.sleep(5); r.set_heater(False)
-        print("Heater OFF")
+        print("\nA109 heater ON for 5 s (listen for the relay click) ...")
+        b.set_heater("A109", True); time.sleep(5); b.set_heater("A109", False)
 
-        print("temp:", r.read_temperature(), " smoke:", r.read_smoke())
+        print("A109 buzzer beep ...")
+        b.set_buzzer("A109", True); time.sleep(1); b.set_buzzer("A109", False)
 
-        print("Buzzer beep ...")
-        r.set_buzzer(True); time.sleep(1); r.set_buzzer(False)
+        print("A108 heater ON (virtual — nothing should click) ...")
+        b.set_heater("A108", True); time.sleep(1)
+        print("A108 state:", b.state("A108"))
+        b.set_heater("A108", False)
 
         print("self-test OK")
     finally:
-        r.close()
+        b.close()

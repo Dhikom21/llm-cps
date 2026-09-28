@@ -1,164 +1,58 @@
 """
-edge_agent.py — the Scenario A control loop, running ON the Raspberry Pi.
+edge_agent.py — the rule-based baseline, now across several rooms.
 
-This is the milestone where the project stops being a simulation. The loop is
-the classic CPS cycle, with real hardware on both ends:
+This is the control the LLM version is measured against, so it is deliberately
+dull: a handful of comparisons that cannot be wrong. Everything interesting in
+the project is a deviation from what this file does.
 
-    PERCEIVE   real DS18B20 temperature  +  smoke level from the BuildSim twin
-    DECIDE     a plain rule (no LLM yet — that is the next milestone)
-    ACT        real relay (heater) and real piezo (alarm)
-    PUBLISH    every reading to BuildSim (live view) and MQTT (history)
+    PERCEIVE   real DS18B20 per room  +  smoke from the twin
+    DECIDE     a rule, per room
+    GUARD      every action goes through pi_guard, same as the LLM version
+    ACT        A109's relay and piezo are real; A108's actuators are virtual
+    PUBLISH    readings and states to BuildSim
 
-Deliberately rule-based. It is the baseline the LLM agent gets compared
-against, so it has to be simple enough to be obviously correct.
+Running the baseline through the same guard is the point. Both agents produce
+the same shape of audit record, so the two runs are directly comparable and the
+rule's row in the results table is a measurement rather than an assumption.
 
 --------------------------------------------------------------------------
-Safety override
+Safety ordering
 --------------------------------------------------------------------------
-Smoke beats temperature. If the twin reports smoke above threshold, the
-heater is forced OFF and the buzzer sounds, whatever the temperature says.
-Comfort never outranks safety — and this ordering is explicit here so that
-the LLM version can later be tested on whether it respects it.
+Smoke beats temperature. Above threshold the heater is forced off and the
+buzzer on, however cold the room is. It is the first branch in decide() so the
+precedence is visible and reviewable — and so the LLM can be tested on whether
+it respects the same ordering.
 
 --------------------------------------------------------------------------
 Run
 --------------------------------------------------------------------------
-On the Pi:
-    export BUILDSIM_URL=http://192.168.1.44:9090     # the laptop
-    export MQTT_HOST=192.168.1.44
+    export BUILDSIM_URL=http://localhost:9090
+    export BAND_LO=24 BAND_HI=25          # for a hand-warming demo
     python3 edge_agent.py
-
-To test the fire path, from the laptop:
-    python3 inject_fire.py ramp
-
-Switch back to a simulated room with one line below (HW import).
 """
+import json
 import os
 import signal
-import sys
 import time
 
-import requests
+import edge_agent_rules
+import pi_guard
+import rooms
+import twin
 
-# --- the one line that chooses simulation vs reality ---
-import real_hardware as hw            # the Pi
-# import fake_hardware as hw          # no hardware attached
+if os.environ.get("HW", "real") == "fake":
+    import fake_hardware as hw
+else:
+    import real_hardware as hw
 
-# ---------------- configuration ----------------
-BUILDSIM  = os.environ.get("BUILDSIM_URL", "http://localhost:9090")
-MQTT_HOST = os.environ.get("MQTT_HOST", "localhost")
-MQTT_PORT = int(os.environ.get("MQTT_PORT", "1883"))
+CYCLE_S = float(os.environ.get("CYCLE_S", "2.0"))
 
-ROOM, LEVEL = "A109", "level0"
-TEMP_EQ_ID, TEMP_VAL_ID   = "pi-temp-A109", "pi-temp-A109-val"
-HEAT_EQ_ID, HEAT_ST_ID    = "pi-heater-A109", "pi-heater-A109-state"
-ALARM_EQ_ID, ALARM_ST_ID  = "pi-alarm-A109", "pi-alarm-A109-state"
-TOPIC = f"sensors/{LEVEL}/{ROOM}/temperature"
-
-# Comfort band with hysteresis — heat below LO, stop above HI.
-# The gap between them is what stops the relay chattering around a setpoint.
-#
-# Settable from the environment so you can retune without editing, pushing and
-# pulling the file. For a hand-warming demo, put the band just ABOVE ambient:
-#     export BAND_LO=24 BAND_HI=25
-# so the heater rests ON and a pinch is what switches it OFF.
-BAND_LO = float(os.environ.get("BAND_LO", "22.0"))
-BAND_HI = float(os.environ.get("BAND_HI", "24.0"))
-SMOKE_THRESHOLD = float(os.environ.get("SMOKE_THRESHOLD", "1.0"))  # volts
-CYCLE_S         = float(os.environ.get("CYCLE_S", "2.0"))
-HTTP_TIMEOUT     = 2.0
-
-# ---------------- optional MQTT ----------------
-try:
-    import paho.mqtt.client as mqtt
-    _mqtt = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="pi-edge-agent")
-    _mqtt.connect(MQTT_HOST, MQTT_PORT, keepalive=30)
-    _mqtt.loop_start()
-    print(f"[mqtt] connected to {MQTT_HOST}:{MQTT_PORT}, topic={TOPIC}")
-except Exception as e:                      # broker down, or paho not installed
-    _mqtt = None
-    print(f"[mqtt] unavailable ({e}) — continuing without history publishing")
+# The decision lives in its own module so the LLM agent can fall back to THIS
+# code rather than a second copy that might quietly drift out of step.
+decide = edge_agent_rules.decide
 
 
-# ---------------- BuildSim plumbing ----------------
-def register():
-    """Announce this Pi's sensor and actuator to the twin, once at startup."""
-    try:
-        requests.post(f"{BUILDSIM}/api/equipment", timeout=HTTP_TIMEOUT, json={
-            "id": TEMP_EQ_ID, "name": "Pi Temperature (real)",
-            "type": "temperature_sensor", "category": "monitoring",
-            "level": LEVEL, "room": ROOM, "status": "running"})
-        requests.post(f"{BUILDSIM}/api/equipment/{TEMP_EQ_ID}/sensors",
-                      timeout=HTTP_TIMEOUT, json={
-                          "id": TEMP_VAL_ID, "name": "Temperature",
-                          "type": "temperature", "data_type": "text",
-                          "unit": "°C", "value": "0.00"})
-
-        requests.post(f"{BUILDSIM}/api/equipment", timeout=HTTP_TIMEOUT, json={
-            "id": HEAT_EQ_ID, "name": "Pi Heater (real relay)",
-            "type": "radiator", "category": "hvac",
-            "level": LEVEL, "room": ROOM, "status": "running"})
-        requests.post(f"{BUILDSIM}/api/equipment/{HEAT_EQ_ID}/actuators",
-                      timeout=HTTP_TIMEOUT, json={
-                          "id": HEAT_ST_ID, "name": "State",
-                          "type": "state", "data_type": "text", "value": "off"})
-
-        requests.post(f"{BUILDSIM}/api/equipment", timeout=HTTP_TIMEOUT, json={
-            "id": ALARM_EQ_ID, "name": "Pi Alarm (real buzzer)",
-            "type": "fire_alarm_panel", "category": "safety",
-            "level": LEVEL, "room": ROOM, "status": "running"})
-        requests.post(f"{BUILDSIM}/api/equipment/{ALARM_EQ_ID}/actuators",
-                      timeout=HTTP_TIMEOUT, json={
-                          "id": ALARM_ST_ID, "name": "State",
-                          "type": "state", "data_type": "text", "value": "off"})
-
-        requests.post(f"{BUILDSIM}/api/equipment/notify", timeout=HTTP_TIMEOUT)
-        print(f"[twin] registered temp + heater + alarm at {BUILDSIM}")
-    except requests.RequestException as e:
-        print(f"[twin] registration failed ({e}) — running local-only")
-
-
-def publish_temp(value):
-    """Two writes per reading: the twin for the live view, MQTT for history."""
-    try:
-        requests.put(f"{BUILDSIM}/api/sensors/{TEMP_VAL_ID}/value",
-                     json={"data_type": "text", "value": f"{value:.2f}"},
-                     timeout=HTTP_TIMEOUT)
-    except requests.RequestException:
-        pass                                    # the twin is a view, not the loop
-    if _mqtt:
-        _mqtt.publish(TOPIC, f'{{"room":"{ROOM}","value":{value:.2f},'
-                             f'"ts":{time.time():.0f}}}')
-
-
-def publish_actuator(actuator_id, state):
-    """Mirror an actuator's real state into the twin, so the floor plan shows
-    what the hardware is actually doing."""
-    try:
-        requests.put(f"{BUILDSIM}/api/actuators/{actuator_id}/state",
-                     json={"data_type": "text", "value": state},
-                     timeout=HTTP_TIMEOUT)
-    except requests.RequestException:
-        pass
-
-
-# ---------------- the decision ----------------
-def decide(temp, smoke, heater_on):
-    """Return (heater_on, buzzer_on, why). Pure function — easy to unit-test,
-    and the exact job the LLM takes over in the next milestone."""
-    if smoke >= SMOKE_THRESHOLD:
-        return False, True, f"FIRE: smoke {smoke:.2f} V >= {SMOKE_THRESHOLD}"
-    if temp < BAND_LO:
-        return True, False, f"temp {temp:.2f} below {BAND_LO}"
-    if temp > BAND_HI:
-        return False, False, f"temp {temp:.2f} above {BAND_HI}"
-    return heater_on, False, "within band, hold"
-
-
-# ---------------- main loop ----------------
-room = hw.get_room()
-register()
-
+# ---------------- main ----------------
 running = True
 
 
@@ -170,48 +64,61 @@ def stop(*_):
 signal.signal(signal.SIGINT, stop)
 signal.signal(signal.SIGTERM, stop)
 
-print(f"edge agent running: band {BAND_LO}-{BAND_HI} C, "
-      f"smoke threshold {SMOKE_THRESHOLD} V, cycle {CYCLE_S}s. Ctrl-C to stop.")
+building = hw.get_building()
+twin.register_all()
 
-heater_on = False
-buzzer_on = False
-last_reason = None
+print(f"edge agent (rule) on {rooms.names()}: "
+      f"band {rooms.DEFAULT_BAND}, smoke threshold {rooms.SMOKE_THRESHOLD} V, "
+      f"cycle {CYCLE_S}s, audit -> {pi_guard.AUDIT_PATH}. Ctrl-C to stop.")
+
+last_line = {}
 
 try:
     while running:
-        # PERCEIVE
-        temp  = room.read_temperature()
-        smoke = room.read_smoke()
+        # ---- PERCEIVE: one snapshot covering every room ----
+        read_at = time.time()
+        snapshot = {"read_at": read_at, "rooms": {}}
 
-        # DECIDE
-        want_heat, want_buzz, why = decide(temp, smoke, heater_on)
+        for room in building.rooms():
+            temp = building.read_temperature(room)
+            lo, hi = rooms.band(room)
+            snapshot["rooms"][room] = {
+                "temp_c": temp,
+                "smoke_v": building.read_smoke(room),
+                "comfort_band": [lo, hi],
+                "smoke_threshold": rooms.SMOKE_THRESHOLD,
+                **building.state(room),
+            }
+            if temp is not None:
+                twin.publish_temp(room, temp)
 
-        # ACT — only when the state actually changes
-        if want_heat != heater_on:
-            room.set_heater(want_heat)
-            heater_on = want_heat
-            publish_actuator(HEAT_ST_ID, "on" if heater_on else "off")
-        if want_buzz != buzzer_on:
-            room.set_buzzer(want_buzz)
-            buzzer_on = want_buzz
-            publish_actuator(ALARM_ST_ID, "on" if buzzer_on else "off")
+        # ---- DECIDE + GUARD + ACT, room by room ----
+        for room, data in snapshot["rooms"].items():
+            state = building.state(room)
 
-        # PUBLISH
-        publish_temp(temp)
+            for action in decide(room, data, state):
+                applied, _, _ = pi_guard.apply(building, action, snapshot,
+                                               source="rule")
+                if applied:
+                    _, actuator = rooms.parse_actuator_id(action["actuator"])
+                    twin.publish_actuator(room, actuator, action["state"])
 
-        if why != last_reason:
-            print(f"{time.strftime('%H:%M:%S')}  {temp:6.2f} C  "
-                  f"smoke {smoke:.2f} V  heater={'ON ' if heater_on else 'OFF'}"
-                  f"  alarm={'YES' if buzzer_on else 'no '}  <- {why}")
-            last_reason = why
+            # Print only when something about the room changes, so a loop
+            # running every two seconds does not bury the lines that matter.
+            t = "  n/a" if data["temp_c"] is None else f"{data['temp_c']:6.2f}"
+            line = (f"{room}  {t} C  smoke {data['smoke_v']:.2f} V  "
+                    f"heater={building.state(room)['heater']:<3} "
+                    f"alarm={building.state(room)['buzzer']}")
+            if line != last_line.get(room):
+                print(f"{time.strftime('%H:%M:%S')}  {line}")
+                last_line[room] = line
 
         time.sleep(CYCLE_S)
 finally:
-    # The physical world does not reset when the process exits.
-    room.set_buzzer(False)
-    room.set_heater(False)
-    publish_actuator(HEAT_ST_ID, "off")
-    publish_actuator(ALARM_ST_ID, "off")
-    if _mqtt:
-        _mqtt.loop_stop()
-    print("\nstopped — heater off, alarm off")
+    for room in building.rooms():
+        building.set_buzzer(room, False)
+        building.set_heater(room, False)
+        twin.publish_actuator(room, "heater", "off")
+        twin.publish_actuator(room, "buzzer", "off")
+    print("\nstopped — all heaters off, all alarms off")
+    print("audit summary:", json.dumps(pi_guard.summarise()))

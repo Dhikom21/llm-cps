@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cps
+---
+# Everything that differs between "on the Pi" and "in the university cluster"
+# lives here, so no image has to be rebuilt to move. The agent reaches BuildSim
+# by service name, which resolves the same way in either cluster.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cps-config
+  namespace: cps
+data:
+  BUILDSIM_URL: "http://buildsim:9090"
+  BAND_LO: "24.0"
+  BAND_HI: "25.0"
+  SMOKE_THRESHOLD: "1.0"
+  CYCLE_S: "8.0"
+  MAX_READING_AGE_S: "15"
+  EXIT_ROOMS: "A152,1542"
+  LLM_BASE_URL: "http://localhost:11434/v1"
+  LLM_MODEL: "qwen2.5:1.5b"
+---
+# Created from the command line rather than committed, so no key ends up in git:
+#
+#   kubectl -n cps create secret generic cps-secrets \
+#     --from-literal=LLM_API_KEY=not-needed
+#
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cps-secrets
+  namespace: cps
+type: Opaque
+stringData:
+  LLM_API_KEY: "not-needed"

@@ -1,0 +1,21 @@
+# The agent image: Python plus the GPIO/1-Wire libraries.
+#
+# Built for arm64 because it only ever runs on the Pi. That is not a packaging
+# detail — it is the architectural point. Everything else in this project is
+# portable; this one image is welded to a specific piece of hardware.
+FROM python:3.11-slim-bookworm
+
+# lgpio is what gpiozero uses on the Pi 5 (the older RPi.GPIO does not support
+# the RP1 chip). build-essential is needed to compile it, then removed.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends build-essential python3-dev \
+ && pip install --no-cache-dir requests gpiozero w1thermsensor lgpio \
+ && apt-get purge -y build-essential python3-dev \
+ && apt-get autoremove -y \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY lab_practice/ /app/
+
+# No CMD: the manifest chooses which agent to run, so the same image serves
+# both the rule baseline and the LLM version.

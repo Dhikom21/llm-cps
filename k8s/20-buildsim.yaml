@@ -1,0 +1,71 @@
+# BuildSim — the digital twin.
+#
+# This is the portable half of the system. Nothing here touches hardware, so it
+# runs unchanged on the Pi's k3s or on a university cluster, given an amd64
+# build of the image.
+#
+# replicas MUST stay 1. BuildSim keeps all equipment state in memory and has no
+# shared store, so two replicas would be two different buildings and requests
+# would land on whichever the service picked. This is a stateful service wearing
+# a stateless costume — worth noting rather than discovering during a demo.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: buildsim
+  namespace: cps
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate          # never two at once, not even briefly during a rollout
+  selector:
+    matchLabels: { app: buildsim }
+  template:
+    metadata:
+      labels: { app: buildsim }
+    spec:
+      containers:
+        - name: buildsim
+          image: cps/buildsim:local
+          imagePullPolicy: IfNotPresent
+          args: ["start", "--all-interfaces", "--port", "9090"]
+          ports:
+            - containerPort: 9090
+              name: http
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits:   { cpu: "1000m", memory: "512Mi" }
+          readinessProbe:
+            httpGet: { path: /api/config, port: 9090 }
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /api/config, port: 9090 }
+            initialDelaySeconds: 10
+            periodSeconds: 20
+---
+# In-cluster name, used by the agent and the evacuation service.
+apiVersion: v1
+kind: Service
+metadata:
+  name: buildsim
+  namespace: cps
+spec:
+  selector: { app: buildsim }
+  ports:
+    - port: 9090
+      targetPort: 9090
+---
+# A fixed external port so the laptop browser can reach the viewer at
+# http://192.168.1.45:30090 without looking anything up.
+apiVersion: v1
+kind: Service
+metadata:
+  name: buildsim-view
+  namespace: cps
+spec:
+  type: NodePort
+  selector: { app: buildsim }
+  ports:
+    - port: 9090
+      targetPort: 9090
+      nodePort: 30090

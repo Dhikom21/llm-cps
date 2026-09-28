@@ -1,0 +1,96 @@
+# The agent — the one pod that cannot be scheduled.
+#
+# Everything below exists to defeat the scheduler rather than use it:
+#
+#   nodeSelector          it may only run on the machine wired to the sensors
+#   replicas: 1           gpiozero holds the pins exclusively; a second pod
+#                         crashes with a GPIO-busy error
+#   strategy: Recreate    the default RollingUpdate would start the new pod
+#                         BEFORE stopping the old one, and the new one would
+#                         die on the busy pins. Recreate stops first.
+#   privileged + /dev     GPIO, 1-Wire and I2C are host devices, not a network
+#                         service the pod can dial
+#
+# That list is the finding, not the boilerplate: Kubernetes gives you placement,
+# replication and rolling updates, and physical coupling takes all three away.
+# The hand cannot be load-balanced, and a room has only one relay.
+#
+# Label the node once:
+#   kubectl label node cps-pi cps-role=edge
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent
+  namespace: cps
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: { app: agent }
+  template:
+    metadata:
+      labels: { app: agent }
+    spec:
+      nodeSelector:
+        cps-role: edge
+      # Host networking is not required, but it keeps the agent reachable at a
+      # stable address and avoids a second network hop for something that is
+      # already pinned to this machine.
+      containers:
+        - name: agent
+          image: cps/agent:local
+          imagePullPolicy: IfNotPresent
+
+          # Swap to llm_edge_agent.py for the LLM run. Same image, same mounts,
+          # same everything else — which is what makes the comparison fair.
+          command: ["python3", "-u", "edge_agent.py"]
+          # command: ["python3", "-u", "llm_edge_agent.py"]
+
+          envFrom:
+            - configMapRef: { name: cps-config }
+            - secretRef:    { name: cps-secrets }
+          env:
+            - name: AUDIT_PATH
+              value: /audit/decisions.jsonl
+
+          securityContext:
+            privileged: true      # see the note below
+
+          volumeMounts:
+            - { name: dev,   mountPath: /dev }
+            - { name: onewire, mountPath: /sys/bus/w1, readOnly: true }
+            - { name: audit, mountPath: /audit }
+
+          resources:
+            requests: { cpu: "50m",  memory: "64Mi" }
+            limits:   { cpu: "500m", memory: "256Mi" }
+
+      volumes:
+        # Pi 5 exposes the 40-pin header as /dev/gpiochip4 (the RP1 chip), and
+        # I2C as /dev/i2c-1. Mounting all of /dev is blunt; listing individual
+        # devices is tighter but breaks whenever the kernel renumbers them.
+        - name: dev
+          hostPath: { path: /dev }
+        # 1-Wire sensors appear as folders under here, one per 28-* device.
+        - name: onewire
+          hostPath: { path: /sys/bus/w1 }
+        # The audit log must outlive the pod. A container filesystem is erased
+        # on every restart, and an experiment whose evidence disappears when a
+        # pod is rescheduled is not an experiment.
+        - name: audit
+          hostPath:
+            path: /var/lib/cps/audit
+            type: DirectoryOrCreate
+---
+# NOTE ON privileged: true
+#
+# This container can do anything to the host. That is a real cost, and it is
+# the honest price of giving software a hand: to touch the physical world it
+# needs privileges that container isolation exists to prevent.
+#
+# It can be narrowed — drop privileged, add only the specific device nodes, and
+# run as a user in the gpio and i2c groups — and doing so is a good exercise.
+# But it cannot be removed, and that asymmetry is worth stating in the report:
+# the same guardrails that constrain what the AGENT may command do not
+# constrain what the CONTAINER may do to its host.

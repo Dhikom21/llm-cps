@@ -1,0 +1,60 @@
+# The evacuation service — portable, like BuildSim.
+#
+# It touches no hardware: it reads the smoke value from the twin and writes
+# people, routes and alerts back to it. So it can be rescheduled freely, run on
+# any node, and be restarted without consequence to the physical world.
+#
+# Contrast this with 30-agent.yaml. Same project, same language, same image
+# base — and this one is a normal cloud workload while that one is nailed to a
+# bench. The difference is not software architecture; it is whether the process
+# has a wire coming out of it.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: evacuate
+  namespace: cps
+spec:
+  replicas: 1          # not for hardware reasons: two would fight over the
+                       # same people, route and alert collections, since each
+                       # PUT replaces the whole set
+  selector:
+    matchLabels: { app: evacuate }
+  template:
+    metadata:
+      labels: { app: evacuate }
+    spec:
+      containers:
+        - name: evacuate
+          image: cps/agent:local
+          imagePullPolicy: IfNotPresent
+          command: ["python3", "-u", "evacuate.py"]
+          envFrom:
+            - configMapRef: { name: cps-config }
+          resources:
+            requests: { cpu: "50m",  memory: "64Mi" }
+            limits:   { cpu: "300m", memory: "128Mi" }
+---
+# Fault injection as a Job rather than a Deployment: it runs once and finishes,
+# which is exactly what an experiment trigger should do.
+#
+#   kubectl -n cps create job fire-$(date +%s) --from=cronjob/... # (no cronjob)
+# or simply:
+#   kubectl -n cps delete job inject-fire --ignore-not-found
+#   kubectl -n cps apply -f 40-evacuate.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: inject-fire
+  namespace: cps
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: inject
+          image: cps/agent:local
+          imagePullPolicy: IfNotPresent
+          command: ["python3", "-u", "inject_fire.py", "ramp"]
+          envFrom:
+            - configMapRef: { name: cps-config }
