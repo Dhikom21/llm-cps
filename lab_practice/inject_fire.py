@@ -27,20 +27,63 @@ import requests
 
 BUILDSIM     = os.environ.get("BUILDSIM_URL", "http://localhost:9090")
 SMOKE_VAL_ID = "pi-smoke-A109-val"
+ROOM, LEVEL  = "A109", "level0"
 
 CLEAN_AIR_V = 0.10
 FIRE_V      = 3.00
 RAMP_S      = 20.0
 RAMP_STEP_S = 1.0
 
+VISIBLE_FROM = 0.30      # volts below which nothing is drawn (still clean air)
+
+
+def set_effects(volts):
+    """Draw the fire in the 3D viewer, scaled by how bad it is.
+
+    /api/effects is a REPLACE-the-whole-collection endpoint: whatever list you
+    send becomes the complete set, and [] clears everything. BuildSim animates
+    the primitives but models no physics — spreading and dying down is our job,
+    which is what the intensity below does.
+    """
+    intensity = max(0.0, min(1.0, (volts - VISIBLE_FROM) / (FIRE_V - VISIBLE_FROM)))
+
+    if intensity <= 0.0:
+        effects = []                       # clean air: draw nothing
+    else:
+        effects = [
+            {"id": f"fire-{ROOM}", "type": "fire", "label": "Fire source",
+             "level": LEVEL, "room": ROOM,
+             "radius": 3 + 4 * intensity,   # grows as it gets worse
+             "height": 6 + 9 * intensity,
+             "intensity": round(intensity, 2)},
+            {"id": f"smoke-{ROOM}", "type": "smoke",
+             "level": LEVEL, "room": ROOM,
+             "radius": 4 + 4 * intensity,
+             "height": 8 + 10 * intensity,
+             "intensity": round(intensity, 2)},
+        ]
+
+    r = requests.put(f"{BUILDSIM}/api/effects", json=effects, timeout=2.0)
+    r.raise_for_status()
+    return intensity
+
 
 def set_smoke(volts):
-    """PUT one smoke value into the twin."""
+    """PUT one smoke value into the twin, and update what the viewer draws.
+
+    Two separate things, deliberately:
+      - the SENSOR value is what the Pi reads and acts on   (the data)
+      - the EFFECT is what a human sees on the floor plan   (the picture)
+    Keeping them apart matters: the agent must decide from the reading, never
+    from the visualisation.
+    """
     r = requests.put(f"{BUILDSIM}/api/sensors/{SMOKE_VAL_ID}/value",
                      json={"data_type": "text", "value": f"{volts:.3f}"},
                      timeout=2.0)
     r.raise_for_status()
-    print(f"smoke = {volts:.3f} V")
+
+    intensity = set_effects(volts)
+    print(f"smoke = {volts:.3f} V   fire intensity = {intensity:.2f}")
 
 
 def ramp():
