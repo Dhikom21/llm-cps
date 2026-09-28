@@ -104,12 +104,12 @@ class RealRoom:
         try:
             requests.post(f"{BUILDSIM}/api/equipment", timeout=HTTP_TIMEOUT, json={
                 "id": SMOKE_EQ_ID, "name": "Pi Smoke (simulated)",
-                "type": "smoke_sensor", "category": "safety",
+                "type": "smoke_detector", "category": "safety",
                 "level": LEVEL, "room": ROOM, "status": "running"})
             requests.post(f"{BUILDSIM}/api/equipment/{SMOKE_EQ_ID}/sensors",
                           timeout=HTTP_TIMEOUT, json={
                               "id": SMOKE_VAL_ID, "name": "Smoke",
-                              "type": "smoke", "data_type": "text",
+                              "type": "smoke_level", "data_type": "text",
                               "unit": "V", "value": f"{CLEAN_AIR_V:.3f}"})
             requests.post(f"{BUILDSIM}/api/equipment/notify", timeout=HTTP_TIMEOUT)
             print(f"[hw] smoke sensor registered in twin at {BUILDSIM}")

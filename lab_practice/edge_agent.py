@@ -50,8 +50,9 @@ MQTT_HOST = os.environ.get("MQTT_HOST", "localhost")
 MQTT_PORT = int(os.environ.get("MQTT_PORT", "1883"))
 
 ROOM, LEVEL = "A109", "level0"
-TEMP_EQ_ID, TEMP_VAL_ID = "pi-temp-A109", "pi-temp-A109-val"
-HEAT_EQ_ID, HEAT_ST_ID  = "pi-heater-A109", "pi-heater-A109-state"
+TEMP_EQ_ID, TEMP_VAL_ID   = "pi-temp-A109", "pi-temp-A109-val"
+HEAT_EQ_ID, HEAT_ST_ID    = "pi-heater-A109", "pi-heater-A109-state"
+ALARM_EQ_ID, ALARM_ST_ID  = "pi-alarm-A109", "pi-alarm-A109-state"
 TOPIC = f"sensors/{LEVEL}/{ROOM}/temperature"
 
 # comfort band with hysteresis — heat below LO, stop above HI.
@@ -85,19 +86,28 @@ def register():
                       timeout=HTTP_TIMEOUT, json={
                           "id": TEMP_VAL_ID, "name": "Temperature",
                           "type": "temperature", "data_type": "text",
-                          "unit": "C", "value": "0.00"})
+                          "unit": "°C", "value": "0.00"})
 
         requests.post(f"{BUILDSIM}/api/equipment", timeout=HTTP_TIMEOUT, json={
             "id": HEAT_EQ_ID, "name": "Pi Heater (real relay)",
-            "type": "heater", "category": "hvac",
+            "type": "radiator", "category": "hvac",
             "level": LEVEL, "room": ROOM, "status": "running"})
         requests.post(f"{BUILDSIM}/api/equipment/{HEAT_EQ_ID}/actuators",
                       timeout=HTTP_TIMEOUT, json={
                           "id": HEAT_ST_ID, "name": "State",
                           "type": "state", "data_type": "text", "value": "off"})
 
+        requests.post(f"{BUILDSIM}/api/equipment", timeout=HTTP_TIMEOUT, json={
+            "id": ALARM_EQ_ID, "name": "Pi Alarm (real buzzer)",
+            "type": "fire_alarm_panel", "category": "safety",
+            "level": LEVEL, "room": ROOM, "status": "running"})
+        requests.post(f"{BUILDSIM}/api/equipment/{ALARM_EQ_ID}/actuators",
+                      timeout=HTTP_TIMEOUT, json={
+                          "id": ALARM_ST_ID, "name": "State",
+                          "type": "state", "data_type": "text", "value": "off"})
+
         requests.post(f"{BUILDSIM}/api/equipment/notify", timeout=HTTP_TIMEOUT)
-        print(f"[twin] registered temp + heater at {BUILDSIM}")
+        print(f"[twin] registered temp + heater + alarm at {BUILDSIM}")
     except requests.RequestException as e:
         print(f"[twin] registration failed ({e}) — running local-only")
 
@@ -115,9 +125,11 @@ def publish_temp(value):
                              f'"ts":{time.time():.0f}}}')
 
 
-def publish_heater(state):
+def publish_actuator(actuator_id, state):
+    """Mirror an actuator's real state into the twin, so the floor plan shows
+    what the hardware is actually doing."""
     try:
-        requests.put(f"{BUILDSIM}/api/actuators/{HEAT_ST_ID}/state",
+        requests.put(f"{BUILDSIM}/api/actuators/{actuator_id}/state",
                      json={"data_type": "text", "value": state},
                      timeout=HTTP_TIMEOUT)
     except requests.RequestException:
@@ -156,6 +168,7 @@ print(f"edge agent running: band {BAND_LO}-{BAND_HI} C, cycle {CYCLE_S}s. "
       f"Ctrl-C to stop.")
 
 heater_on = False
+buzzer_on = False
 last_reason = None
 
 try:
@@ -171,8 +184,11 @@ try:
         if want_heat != heater_on:
             room.set_heater(want_heat)
             heater_on = want_heat
-            publish_heater("on" if heater_on else "off")
-        room.set_buzzer(want_buzz)
+            publish_actuator(HEAT_ST_ID, "on" if heater_on else "off")
+        if want_buzz != buzzer_on:
+            room.set_buzzer(want_buzz)
+            buzzer_on = want_buzz
+            publish_actuator(ALARM_ST_ID, "on" if buzzer_on else "off")
 
         # PUBLISH
         publish_temp(temp)
@@ -180,7 +196,7 @@ try:
         if why != last_reason:
             print(f"{time.strftime('%H:%M:%S')}  {temp:6.2f} C  "
                   f"smoke {smoke:.2f} V  heater={'ON ' if heater_on else 'OFF'}"
-                  f"  alarm={'YES' if want_buzz else 'no '}  <- {why}")
+                  f"  alarm={'YES' if buzzer_on else 'no '}  <- {why}")
             last_reason = why
 
         time.sleep(CYCLE_S)
@@ -188,7 +204,8 @@ finally:
     # The physical world does not reset when the process exits.
     room.set_buzzer(False)
     room.set_heater(False)
-    publish_heater("off")
+    publish_actuator(HEAT_ST_ID, "off")
+    publish_actuator(ALARM_ST_ID, "off")
     if _mqtt:
         _mqtt.loop_stop()
     print("\nstopped — heater off, alarm off")

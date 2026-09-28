@@ -80,7 +80,7 @@
 <div class="wrap">
 
 <nav>
-  <b>The nine steps</b>
+  <b>The twelve steps</b>
   <ol>
     <li><a href="#s1">What we are actually building</a></li>
     <li><a href="#s2">The Pi and its 40 pins</a></li>
@@ -91,6 +91,9 @@
     <li><a href="#s7">Making noise: why a buzzer is different</a></li>
     <li><a href="#s8">Reading something that isn't yes/no</a></li>
     <li><a href="#s9">Closing the loop — and adding the LLM</a></li>
+    <li><a href="#s10">The driver: <code>real_hardware.py</code></a></li>
+    <li><a href="#s11">The fire switch: <code>inject_fire.py</code></a></li>
+    <li><a href="#s12">The control loop: <code>edge_agent.py</code></a></li>
   </ol>
 </nav>
 
@@ -669,6 +672,422 @@ from real_hardware import get_room         # the actual Pi</pre></div>
      still perceive, decide, act. What changed is that the deciding is no longer something we can
      read and verify in advance — so the engineering effort moves from writing the rule to
      constraining and observing whatever the model decides.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="s10">
+  <h2><span class="n">10</span>The driver: <code>real_hardware.py</code></h2>
+
+  <p>Everything up to here was test snippets — a few lines proving one device at a time. The
+     project needs something more durable: one file that owns the hardware and offers the rest of
+     the program a short, stable list of things it can do. That file is
+     <code>real_hardware.py</code>, and it is called a <b>driver</b>.</p>
+
+  <p>It exposes exactly four abilities, and that list is a promise:</p>
+
+  <div class="block"><span class="lang">python</span><button class="copy">copy</button>
+<pre>read_temperature()   ->  float, degrees C
+read_smoke()         ->  float, volts (higher = more smoke)
+set_heater(on)       ->  None
+set_buzzer(on)       ->  None</pre></div>
+
+  <p><code>fake_hardware.py</code> makes the identical promise, but fulfils it with invented
+     numbers. Because both keep the same promise, nothing above them can tell the difference —
+     which is what lets you develop at your desk with no hardware and then move to the Pi without
+     changing a line of the agent.</p>
+
+  <div class="analogy">
+    <b>Analogy.</b> A car's pedals and steering wheel are a promise: press this to go, turn that to
+    steer. Swap a petrol engine for an electric motor and the promise is unchanged — the driver
+    doesn't retrain. The four functions above are our pedals; what happens behind them can be a
+    real relay or a simulation, and the agent never needs to know.
+  </div>
+
+  <h3>The hybrid: three real, one borrowed</h3>
+
+  <p>Three of those four talk to genuine hardware. <code>read_smoke()</code> does not, and the
+     reason is the limitation from step 8: the smoke sensor is analogue, the Pi has no analogue
+     input, and we have no ADC. Rather than return a hard-coded fake, the driver <b>fetches the
+     smoke level from the BuildSim digital twin</b> over HTTP.</p>
+
+  <p>That turns a shortage into something more interesting than the original plan. A fire that
+     exists only in the simulation now makes a real buzzer sound on the desk:</p>
+
+  <div class="block"><span class="lang">text</span><button class="copy">copy</button>
+<pre>simulated fire in the twin  ->  read_smoke()  ->  agent decides  ->  REAL buzzer beeps</pre></div>
+
+  <p>A cause that is purely cyber producing an effect that is unmistakably physical — which is the
+     whole thesis of a cyber-physical system, demonstrated on one desk. It is also exactly the
+     rig the hallucination experiments need, because an agent can be induced to sound a real
+     alarm from a reading that was never true.</p>
+
+  <h3>Setting up: the constructor</h3>
+
+  <div class="block"><span class="lang">python</span><button class="copy">copy</button>
+<pre>class RealRoom:
+    def __init__(self):
+        self._heater = OutputDevice(HEATER_PIN, active_high=True, initial_value=False)
+        self._buzzer = PWMOutputDevice(BUZZER_PIN, frequency=BUZZER_HZ, initial_value=0)
+
+        self._sensors = W1ThermSensor.get_available_sensors()
+        if not self._sensors:
+            raise RuntimeError(
+                "no DS18B20 found on the 1-Wire bus. Check: ls /sys/bus/w1/devices/ ...")
+        print(f"[hw] {len(self._sensors)} DS18B20 found: {[s.id for s in self._sensors]}")
+
+        self._twin_warned = False
+        self._register_smoke_in_twin()</pre></div>
+
+  <table class="lines">
+    <tr><th>Line</th><th>What it does, and why</th></tr>
+    <tr><td>def __init__(self):</td>
+        <td>Runs once, when the room object is created. Its job is to claim the hardware and
+            fail immediately if anything is missing — better a clear error at startup than a
+            confusing one an hour into a run.</td></tr>
+    <tr><td>OutputDevice(..., initial_value=False)</td>
+        <td>Claims the relay pin and explicitly starts it off. Without
+            <code>initial_value</code> the pin's state at startup is undefined, so the heater
+            could twitch on every time you launch the program.</td></tr>
+    <tr><td>PWMOutputDevice(..., frequency=BUZZER_HZ)</td>
+        <td><b>The fix we learned the hard way.</b> This used to be <code>Buzzer(27)</code>, which
+            just holds the pin high — and a piezo held at a steady voltage is silent. PWM switches
+            it 2000 times a second, which is what makes it sing.</td></tr>
+    <tr><td>W1ThermSensor.get_available_sensors()</td>
+        <td>Finds every DS18B20 on the bus, rather than assuming one. You have two, and this way
+            the code works with either count.</td></tr>
+    <tr><td>if not self._sensors: raise RuntimeError(...)</td>
+        <td><b>Fail loudly, early, with instructions.</b> An empty list means a wiring fault. Left
+            unchecked it would surface much later as a baffling
+            <code>IndexError: list index out of range</code>. The error message even names the
+            command that diagnoses it.</td></tr>
+    <tr><td>self._twin_warned = False</td>
+        <td>A flag so the "BuildSim is unreachable" warning prints <i>once</i>, not every two
+            seconds forever. Logs that repeat the same line thousands of times are logs nobody
+            reads.</td></tr>
+  </table>
+
+  <h3>Reading smoke from the twin</h3>
+
+  <div class="block"><span class="lang">python</span><button class="copy">copy</button>
+<pre>    def read_smoke(self):
+        try:
+            r = requests.get(f"{BUILDSIM}/api/equipment/{SMOKE_EQ_ID}", timeout=HTTP_TIMEOUT)
+            r.raise_for_status()
+            for s in r.json().get("sensors", []):
+                if s.get("id") == SMOKE_VAL_ID:
+                    return round(float(s.get("value", CLEAN_AIR_V)), 3)
+        except (requests.RequestException, ValueError, TypeError) as e:
+            self._warn_twin(e)
+        return CLEAN_AIR_V</pre></div>
+
+  <table class="lines">
+    <tr><th>Line</th><th>What it does, and why</th></tr>
+    <tr><td>requests.get(f"{BUILDSIM}/api/equipment/...")</td>
+        <td>Asks BuildSim for that piece of equipment. BuildSim speaks REST — you ask for a thing
+            by its address and get JSON describing it.</td></tr>
+    <tr><td>timeout=HTTP_TIMEOUT</td>
+        <td><b>Never make a network call without a timeout.</b> Without one, a laptop that went to
+            sleep mid-request would hang this call forever, and with it the entire control loop —
+            the heater frozen in whatever state it was last left in. Two seconds, then give up.</td></tr>
+    <tr><td>r.raise_for_status()</td>
+        <td>Turns an HTTP error code such as 404 into a Python exception, so it lands in the same
+            <code>except</code> as a network failure and gets handled in one place.</td></tr>
+    <tr><td>for s in r.json().get("sensors", []):</td>
+        <td>One piece of equipment can carry several sensors, so we walk the list and pick ours
+            out by id. <code>.get("sensors", [])</code> gives an empty list rather than crashing
+            if the field is absent.</td></tr>
+    <tr><td>float(s.get("value", ...))</td>
+        <td>BuildSim stores values as text, so it arrives as <code>"3.000"</code> and has to be
+            converted. If that text were ever malformed, <code>float()</code> raises
+            <code>ValueError</code> — which is why <code>ValueError</code> is in the except list.</td></tr>
+    <tr><td>return CLEAN_AIR_V</td>
+        <td>The fallback, reached whenever the twin cannot be read. See the note below — this
+            single line is a real safety decision.</td></tr>
+  </table>
+
+  <div class="tip"><b>An honest trade-off worth stating in the report.</b> When BuildSim is
+     unreachable, <code>read_smoke()</code> returns clean air — so the loop keeps controlling the
+     real temperature instead of crashing, but it will <i>not</i> raise an alarm. That is
+     "fail-quiet". A real fire system does the opposite: it treats a lost sensor as a fault
+     condition and screams, because a missed fire costs more than a false alarm. Our choice is
+     defensible for a lab rig where the buzzer is on your desk, but it is a choice, and it should
+     be written down rather than left implicit.</div>
+
+  <h3>Leaving the hardware safe</h3>
+
+  <div class="block"><span class="lang">python</span><button class="copy">copy</button>
+<pre>    def close(self):
+        self._buzzer.value = 0.0
+        self._heater.off()</pre></div>
+
+  <p>Two lines, and the most important method in the file. A variable disappears when your program
+     ends; an energised relay does not. Without <code>close()</code> — called from a
+     <code>finally</code> block so it runs even after a crash — Ctrl-C leaves the heater on and
+     the alarm sounding with nothing left running to turn them off.</p>
+
+  <h3>Why the address comes from the environment</h3>
+
+  <div class="block"><span class="lang">python</span><button class="copy">copy</button>
+<pre>BUILDSIM = os.environ.get("BUILDSIM_URL", "http://localhost:9090")</pre></div>
+
+  <p>BuildSim runs on the laptop, not on the Pi, so <code>localhost</code> is simply wrong when
+     this code runs on the Pi — <i>localhost</i> means "this machine", and on the Pi that is the
+     Pi. Reading the address from an environment variable means the same file works in both
+     places, with the difference supplied from outside:</p>
+
+  <div class="block"><span class="lang">bash</span><button class="copy">copy</button>
+<pre>export BUILDSIM_URL=http://192.168.1.44:9090</pre></div>
+
+  <p>The second argument to <code>os.environ.get</code> is the default used when the variable is
+     not set, which keeps it working on the laptop with no setup at all. Configuration that
+     changes between machines belongs outside the code — hard-coding an IP address guarantees
+     someone eventually edits the source just to run it somewhere else.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="s11">
+  <h2><span class="n">11</span>The fire switch: <code>inject_fire.py</code></h2>
+
+  <p>To study how a system behaves in an emergency you need emergencies on demand. Setting fire to
+     the lab is not an option, so the smoke level lives in the twin and this script is the handle
+     that moves it. This is called <b>fault injection</b>: deliberately creating the abnormal
+     condition, under control, so the response can be observed and repeated.</p>
+
+  <div class="analogy">
+    <b>Analogy.</b> A fire drill. Nobody lights a fire — someone presses the alarm button. What is
+    being tested is not the fire, it is everyone's response to it, and a button is the only way to
+    run that test twice the same way.
+  </div>
+
+  <p>The whole script is one REST call wrapped in a little convenience:</p>
+
+  <div class="block"><span class="lang">python</span><button class="copy">copy</button>
+<pre>def set_smoke(volts):
+    r = requests.put(f"{BUILDSIM}/api/sensors/{SMOKE_VAL_ID}/value",
+                     json={"data_type": "text", "value": f"{volts:.3f}"},
+                     timeout=2.0)
+    r.raise_for_status()
+    print(f"smoke = {volts:.3f} V")</pre></div>
+
+  <table class="lines">
+    <tr><th>Line</th><th>What it does, and why</th></tr>
+    <tr><td>requests.put(...)</td>
+        <td>REST verbs carry meaning: <code>GET</code> reads, <code>POST</code> creates,
+            <b><code>PUT</code> replaces the value of something that already exists</b>. We are
+            overwriting the smoke reading, so <code>PUT</code> is the right verb — and it is
+            <i>idempotent</i>, meaning running it twice leaves the same result, which is exactly
+            what you want from a command you may fire repeatedly.</td></tr>
+    <tr><td>json={...}</td>
+        <td>Sends the body as JSON and sets the content-type header. The shape must match what
+            BuildSim expects, which is why it mirrors what <code>level4_sensor.py</code> already
+            sends.</td></tr>
+    <tr><td>f"{volts:.3f}"</td>
+        <td>Formats the number as text with three decimals, because BuildSim stores sensor values
+            as strings. <code>read_smoke()</code> converts it back.</td></tr>
+    <tr><td>raise_for_status()</td>
+        <td>If BuildSim rejects the call, fail visibly. A fault injector that silently does
+            nothing is worse than no injector at all — you would sit waiting for a response to an
+            event that never happened.</td></tr>
+  </table>
+
+  <h3>Why there is a ramp as well as a switch</h3>
+
+  <div class="block"><span class="lang">python</span><button class="copy">copy</button>
+<pre>def ramp():
+    steps = int(RAMP_S / RAMP_STEP_S)
+    for i in range(steps + 1):
+        set_smoke(CLEAN_AIR_V + (FIRE_V - CLEAN_AIR_V) * (i / steps))
+        time.sleep(RAMP_STEP_S)</pre></div>
+
+  <p><code>inject_fire.py on</code> slams the value from 0.1 V to 3.0 V in an instant. Real smoke
+     does not do that — it builds. <code>ramp</code> walks the value up over twenty seconds, and
+     the expression <code>i / steps</code> is just the fraction of the way through, turning the
+     loop counter into a smooth 0 → 1 slide between the two levels.</p>
+
+  <p>The distinction matters for the experiments. A sudden jump tests whether the agent reacts to
+     a <b>threshold</b>. A gradual rise tests whether it can spot a <b>trend</b> and act before the
+     threshold is reached — a much harder question, and a much more interesting one to ask a
+     language model. Having both available means you can ask each question separately.</p>
+
+  <div class="tip">Rehearse a run before you demonstrate it. <code>ramp</code> takes twenty
+     seconds; with a two-second control cycle the agent gets ten looks at the rising value, which
+     is enough to see a trend but slow enough to narrate while it happens.</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="s12">
+  <h2><span class="n">12</span>The control loop: <code>edge_agent.py</code></h2>
+
+  <p>This is the program that runs on the Pi and actually controls the room. It is the fifteen-line
+     loop from step 9, grown up: same three beats, now with a safety rule, a published record, and
+     a decision that has been deliberately isolated so it can be swapped for a language model.</p>
+
+  <h3>The one line that chooses reality</h3>
+
+  <div class="block"><span class="lang">python</span><button class="copy">copy</button>
+<pre>import real_hardware as hw            # the Pi
+# import fake_hardware as hw          # no hardware attached</pre></div>
+
+  <p>Because both modules keep the same four-function promise, commenting one line and uncommenting
+     the other moves the entire agent between a simulated room and a real one. Nothing else in the
+     file changes. <code>as hw</code> gives both the same local name, so the rest of the code just
+     says <code>hw.get_room()</code> and never learns which it got.</p>
+
+  <h3>The decision, on its own</h3>
+
+  <div class="block"><span class="lang">python</span><button class="copy">copy</button>
+<pre>def decide(temp, smoke, heater_on):
+    if smoke &gt;= SMOKE_THRESHOLD:
+        return False, True, f"FIRE: smoke {smoke:.2f} V &gt;= {SMOKE_THRESHOLD}"
+    if temp &lt; BAND_LO:
+        return True, False, f"temp {temp:.2f} below {BAND_LO}"
+    if temp &gt; BAND_HI:
+        return False, False, f"temp {temp:.2f} above {BAND_HI}"
+    return heater_on, False, "within band, hold"</pre></div>
+
+  <p>Every function returns the same three things: whether the heater should be on, whether the
+     alarm should sound, and <b>a sentence explaining why</b>. That third value is not decoration.
+     It is what gets logged, and later it is what the language model will be required to produce —
+     so building the habit into the rule-based baseline means both versions can be judged the
+     same way.</p>
+
+  <p>This is a <b>pure function</b>: it touches no hardware and keeps no secrets, so the same
+     inputs always give the same answer. You can test every case at your desk in a second, with
+     no Pi:</p>
+
+  <div class="block"><span class="lang">python</span><button class="copy">copy</button>
+<pre>&gt;&gt;&gt; decide(21.0, 0.1, False)      # cold, clean air
+(True, False, 'temp 21.00 below 22.0')
+&gt;&gt;&gt; decide(21.0, 3.0, True)       # cold, but smoke
+(False, True, 'FIRE: smoke 3.00 V &gt;= 1.0')</pre></div>
+
+  <p>Keeping the thinking separate from the doing is what makes control code testable. The loop
+     handles sensors and relays; <code>decide</code> handles judgement; neither interferes with
+     the other.</p>
+
+  <h3>Why the smoke check comes first</h3>
+
+  <p>The order of those <code>if</code> statements <i>is</i> the safety policy. Smoke is tested
+     before temperature, so a fire overrules comfort no matter how cold the room is — the heater
+     is forced off and the alarm sounds. Writing the precedence as the first branch makes it
+     visible and reviewable rather than buried in a compound condition.</p>
+
+  <div class="tip">This ordering also becomes a test for the LLM version. Give the model a room at
+     15 °C <i>and</i> smoke at 3 V and see what it does. The rule cannot get this wrong. A model
+     can — it may well reason its way into keeping the heater on because the room is cold, and
+     that failure is precisely the kind of thing the project exists to measure.</div>
+
+  <h3>The comfort band, and why there are two numbers</h3>
+
+  <div class="block"><span class="lang">python</span><button class="copy">copy</button>
+<pre>BAND_LO, BAND_HI = 22.0, 24.0</pre></div>
+
+  <p>A single setpoint would make the heater switch on and off constantly. At 23.00 °C it heats,
+     at 23.01 °C it stops, a moment later it is 22.99 °C and it heats again — several switches a
+     minute, wearing out a mechanical relay and stressing the heating equipment. That behaviour is
+     called <b>chattering</b>.</p>
+
+  <p>Two numbers with a gap between them solve it. Heat below 22, stop above 24, and in between
+     hold whatever you are already doing. The heater now runs in long steady stretches instead of
+     twitching. This is <b>hysteresis</b>, and it is one of the oldest ideas in control
+     engineering.</p>
+
+  <div class="analogy">
+    <b>Analogy.</b> A door with a stiff latch. To open it you have to push past a point; to close
+    it, past a different point. That stiffness is deliberate — it stops the door swinging back and
+    forth on every draught. Your home thermostat has the same gap built in, which is why it runs
+    for a while and then rests, rather than clicking every few seconds.
+  </div>
+
+  <h3>Acting, publishing, and keeping quiet</h3>
+
+  <div class="block"><span class="lang">python</span><button class="copy">copy</button>
+<pre>        want_heat, want_buzz, why = decide(temp, smoke, heater_on)
+
+        if want_heat != heater_on:                  # act only on a change
+            room.set_heater(want_heat)
+            heater_on = want_heat
+            publish_heater("on" if heater_on else "off")
+        room.set_buzzer(want_buzz)
+
+        publish_temp(temp)
+
+        if why != last_reason:                      # log only on a change
+            print(...)
+            last_reason = why</pre></div>
+
+  <table class="lines">
+    <tr><th>Line</th><th>What it does, and why</th></tr>
+    <tr><td>if want_heat != heater_on:</td>
+        <td>Compare what you want against what is already true, and touch the relay only when they
+            differ. Without this the relay would be commanded every two seconds forever — pointless
+            wear on a mechanical part.</td></tr>
+    <tr><td>room.set_buzzer(want_buzz)</td>
+        <td>No guard here, because a piezo has no moving parts to wear out and setting a PWM duty
+            cycle to the value it already holds costs nothing. Guards are worth it where repetition
+            does damage, and not elsewhere.</td></tr>
+    <tr><td>publish_temp(temp)</td>
+        <td>Sends every reading to two places: BuildSim for the live view, MQTT for the historical
+            record. Every cycle, whether or not anything changed — a gap in a temperature log is
+            itself missing information.</td></tr>
+    <tr><td>if why != last_reason:</td>
+        <td>Print only when the <i>reason</i> changes. A loop running every two seconds would
+            otherwise produce 1800 near-identical lines an hour and bury the three that mattered.
+            Now each line marks a genuine event.</td></tr>
+  </table>
+
+  <h3>Why a failed publish is ignored</h3>
+
+  <div class="block"><span class="lang">python</span><button class="copy">copy</button>
+<pre>    try:
+        requests.put(f"{BUILDSIM}/api/sensors/{TEMP_VAL_ID}/value", ...)
+    except requests.RequestException:
+        pass                                    # the twin is a view, not the loop</pre></div>
+
+  <p>A bare <code>except: pass</code> is normally a bad smell — it hides errors. Here it is
+     deliberate, and the comment says why. BuildSim is a <b>display</b>. If the laptop is asleep or
+     the network drops, the room should carry on being heated correctly; the loop must not die
+     because a dashboard is unavailable.</p>
+
+  <p>The general principle is worth naming: <b>separate what the system needs to function from
+     what humans need to observe it.</b> Losing the observation is an inconvenience. Losing the
+     control is a failure. They should not be able to take each other down — and note that the
+     temperature reading and the relay, the two things the loop genuinely depends on, are both
+     local to the Pi and involve no network at all.</p>
+
+  <h3>The ending that matters</h3>
+
+  <div class="block"><span class="lang">python</span><button class="copy">copy</button>
+<pre>finally:
+    room.set_buzzer(False)
+    room.set_heater(False)
+    publish_heater("off")
+    if _mqtt:
+        _mqtt.loop_stop()
+    print("\nstopped — heater off, alarm off")</pre></div>
+
+  <p><code>finally</code> runs no matter how the loop ends — Ctrl-C, an unhandled exception, a
+     shutdown signal. Whatever went wrong, the relay opens and the alarm stops. Writing to
+     BuildSim afterwards keeps the twin honest about what the real world is now doing, rather
+     than leaving a stale "on" on the screen.</p>
+
+  <p>The <code>signal.signal(signal.SIGINT, stop)</code> handler near the top works with this: it
+     flips <code>running</code> to <code>False</code> so the loop finishes its current pass and
+     exits cleanly through <code>finally</code>, instead of being killed mid-cycle. A control
+     program should be allowed to put its tools down before it leaves.</p>
+
+  <h3>Where the LLM goes next</h3>
+
+  <p>Everything in this file is now in place and proven — real sensing, real actuation, a
+     published record, a safety rule, and a clean shutdown. One function stands alone and does the
+     thinking. In the next milestone <code>decide()</code> is replaced by a call to a language
+     model, given the same three inputs and asked for the same three outputs, with the guarded tool
+     layer standing between its answer and the relay.</p>
+
+  <p>Because the baseline already produces a written reason for every action, and already logs
+     only when its reasoning changes, the two are directly comparable: same room, same hardware,
+     same fire injection, same record — and the only difference is what did the deciding. That
+     comparison is the experiment.</p>
 </section>
 
 <footer>D7065E — Cyber-Physical Systems · companion to <i>Pi_Test_Snippets.html</i></footer>
