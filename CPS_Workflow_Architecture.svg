@@ -1,0 +1,213 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1360 980" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="aB" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 z" fill="#1a5fb4"/></marker>
+    <marker id="aG" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 z" fill="#1b7f4c"/></marker>
+    <marker id="aO" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 z" fill="#c75b00"/></marker>
+    <marker id="aP" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 z" fill="#6c3fa8"/></marker>
+    <marker id="aK" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 z" fill="#78909c"/></marker>
+  </defs>
+  <style>
+    .ttl{font-size:14px;font-weight:700;fill:#0f2d54}
+    .sub{font-size:11px;fill:#5b6b7a}
+    .box{fill:#ffffff;stroke:#b9c6d4;stroke-width:1.6}
+    .grp{fill:#fbfcfd;stroke:#c7ced6;stroke-width:1.6;stroke-dasharray:7 5}
+    .hdr{font-size:11px;font-weight:700;letter-spacing:1.3px;fill:#8a99a8}
+    .lb{font-size:10.5px;fill:#37474f}
+    .wB{stroke:#1a5fb4;stroke-width:2.2;fill:none;marker-end:url(#aB)}
+    .wG{stroke:#1b7f4c;stroke-width:2.2;fill:none;marker-end:url(#aG)}
+    .wO{stroke:#c75b00;stroke-width:2.2;fill:none;marker-end:url(#aO)}
+    .wP{stroke:#6c3fa8;stroke-width:1.9;fill:none;marker-end:url(#aP);stroke-dasharray:7 4}
+    .wK{stroke:#78909c;stroke-width:1.9;fill:none;marker-end:url(#aK)}
+  </style>
+
+  <text x="680" y="36" text-anchor="middle" font-size="22" font-weight="700" fill="#0f2d54">Autonomous CPS — workflow architecture</text>
+  <text x="680" y="59" text-anchor="middle" font-size="13" fill="#5b6b7a">Every process below runs on one Raspberry Pi. The laptop is only a screen.</text>
+
+  <!-- ============ PHYSICAL ============ -->
+  <text x="40" y="140" class="hdr">PHYSICAL</text>
+  <rect x="38" y="150" width="212" height="630" rx="10" class="grp"/>
+
+  <rect x="55" y="185" width="178" height="58" rx="8" class="box" fill="#e8f5e9"/>
+  <text x="144" y="209" text-anchor="middle" class="ttl" font-size="12.5">DS18B20 — A109</text>
+  <text x="144" y="227" text-anchor="middle" class="sub">1-Wire, GPIO4 (pin 7)</text>
+
+  <rect x="55" y="253" width="178" height="58" rx="8" class="box" fill="#e8f5e9"/>
+  <text x="144" y="277" text-anchor="middle" class="ttl" font-size="12.5">DS18B20 — A108</text>
+  <text x="144" y="295" text-anchor="middle" class="sub">same bus, unique ID</text>
+
+  <text x="144" y="352" text-anchor="middle" class="sub">one 4.7 k pull-up</text>
+  <text x="144" y="368" text-anchor="middle" class="sub">serves the whole bus</text>
+
+  <rect x="55" y="600" width="178" height="58" rx="8" class="box" fill="#ffebee"/>
+  <text x="144" y="624" text-anchor="middle" class="ttl" font-size="12.5">Grove relay</text>
+  <text x="144" y="642" text-anchor="middle" class="sub">GPIO17 → heater</text>
+
+  <rect x="55" y="668" width="178" height="58" rx="8" class="box" fill="#ffebee"/>
+  <text x="144" y="692" text-anchor="middle" class="ttl" font-size="12.5">Piezo buzzer</text>
+  <text x="144" y="710" text-anchor="middle" class="sub">GPIO27, PWM 2 kHz</text>
+
+  <text x="144" y="752" text-anchor="middle" class="sub">A109 owns the only</text>
+  <text x="144" y="768" text-anchor="middle" class="sub">real actuators</text>
+
+  <!-- ============ AGENT ============ -->
+  <text x="290" y="140" class="hdr">THE CONTROL LOOP — one process, never two</text>
+  <rect x="288" y="150" width="400" height="630" rx="10" class="box" fill="#f7f9fb"/>
+  <text x="488" y="176" text-anchor="middle" class="ttl">agent process</text>
+  <text x="488" y="193" text-anchor="middle" class="sub">edge_agent.py (rule)  —or—  llm_edge_agent.py (model)</text>
+
+  <rect x="312" y="206" width="352" height="64" rx="8" class="box" fill="#e8f0fb"/>
+  <text x="488" y="230" text-anchor="middle" class="ttl" font-size="13">1 · PERCEIVE</text>
+  <text x="488" y="249" text-anchor="middle" class="sub">temperature · smoke · recent · trend</text>
+
+  <rect x="312" y="300" width="352" height="64" rx="8" class="box" fill="#e8f0fb"/>
+  <text x="488" y="324" text-anchor="middle" class="ttl" font-size="13">2 · DECIDE</text>
+  <text x="488" y="343" text-anchor="middle" class="sub">the rule, or the model — the only difference</text>
+
+  <rect x="312" y="394" width="352" height="64" rx="8" class="box" fill="#fff8ed"/>
+  <text x="488" y="418" text-anchor="middle" class="ttl" font-size="13">3 · GUARD — pi_guard.py</text>
+  <text x="488" y="437" text-anchor="middle" class="sub">H1 phantom · H2 illegal · H4 stale · H5 wrong room</text>
+
+  <rect x="312" y="488" width="352" height="64" rx="8" class="box" fill="#e8f0fb"/>
+  <text x="488" y="512" text-anchor="middle" class="ttl" font-size="13">4 · ACT</text>
+  <text x="488" y="531" text-anchor="middle" class="sub">only genuine changes reach a pin</text>
+
+  <path d="M488,270 L488,296" class="wB"/>
+  <path d="M488,364 L488,390" class="wB"/>
+  <path d="M488,458 L488,484" class="wB"/>
+
+  <rect x="312" y="586" width="352" height="74" rx="8" class="box"/>
+  <text x="488" y="610" text-anchor="middle" class="lb" font-weight="700">real_hardware.py  ·  fake_hardware.py</text>
+  <text x="488" y="629" text-anchor="middle" class="sub">identical interface — one import line swaps</text>
+  <text x="488" y="647" text-anchor="middle" class="sub">simulation for reality</text>
+
+  <text x="488" y="698" text-anchor="middle" class="sub">gpiozero holds the pins exclusively, so a second</text>
+  <text x="488" y="714" text-anchor="middle" class="sub">agent cannot start — replicas: 1, strategy Recreate</text>
+  <text x="488" y="748" text-anchor="middle" class="sub">on exit, every heater and alarm is switched off</text>
+  <text x="488" y="764" text-anchor="middle" class="sub">in a finally block</text>
+
+  <!-- physical wires -->
+  <path d="M233,214 L308,228" class="wG"/>
+  <path d="M233,282 L308,244" class="wG"/>
+  <text x="243" y="198" class="lb" fill="#1b7f4c">1-Wire read</text>
+
+  <path d="M308,524 L237,620" class="wG"/>
+  <path d="M308,536 L237,688" class="wG"/>
+  <text x="243" y="566" class="lb" fill="#1b7f4c">GPIO write</text>
+
+  <!-- ============ SUPPORT COLUMN ============ -->
+  <rect x="716" y="206" width="236" height="64" rx="8" class="box"/>
+  <text x="834" y="230" text-anchor="middle" class="ttl" font-size="12.5">history.py</text>
+  <text x="834" y="249" text-anchor="middle" class="sub">SQLite + MQTT · the past</text>
+
+  <rect x="716" y="300" width="236" height="64" rx="8" class="box" fill="#eceff1"/>
+  <text x="834" y="324" text-anchor="middle" class="ttl" font-size="12.5">Ollama — qwen2.5:3b</text>
+  <text x="834" y="343" text-anchor="middle" class="sub">localhost:11434 · on the Pi</text>
+
+  <rect x="716" y="394" width="236" height="64" rx="8" class="box" fill="#fff8ed"/>
+  <text x="834" y="418" text-anchor="middle" class="ttl" font-size="12.5">spec.py</text>
+  <text x="834" y="437" text-anchor="middle" class="sub">phi_response · phi_safety · ...</text>
+
+  <rect x="716" y="488" width="236" height="64" rx="8" class="box"/>
+  <text x="834" y="512" text-anchor="middle" class="ttl" font-size="12.5">decisions.jsonl</text>
+  <text x="834" y="531" text-anchor="middle" class="sub">append-only audit trail</text>
+
+  <path d="M668,232 L712,232" class="wB"/>
+  <path d="M712,250 L668,250" class="wB"/>
+  <text x="700" y="285" text-anchor="middle" class="lb" fill="#1a5fb4">record · window · trend</text>
+
+  <path d="M668,318 L712,318" class="wO"/>
+  <path d="M712,346 L668,346" class="wO"/>
+  <text x="834" y="292" text-anchor="middle" class="lb" fill="#c75b00">snapshot →      ← desired state</text>
+
+  <path d="M712,412 L668,350" class="wP"/>
+  <text x="652" y="378" text-anchor="end" class="lb" fill="#6c3fa8">generates the controller</text>
+
+  <path d="M668,516 L712,516" class="wB"/>
+  <text x="690" y="566" text-anchor="middle" class="lb" fill="#1a5fb4">every attempt, with</text>
+  <text x="690" y="580" text-anchor="middle" class="lb" fill="#1a5fb4">the snapshot it was judged against</text>
+
+  <!-- ============ OBSERVERS ============ -->
+  <text x="990" y="140" class="hdr">OBSERVE AND INJECT</text>
+  <rect x="990" y="150" width="108" height="62" rx="8" class="box" fill="#f2edfa"/>
+  <text x="1044" y="174" text-anchor="middle" class="ttl" font-size="12">inject_fire</text>
+  <text x="1044" y="192" text-anchor="middle" class="sub">the fire</text>
+
+  <rect x="1106" y="150" width="108" height="62" rx="8" class="box" fill="#f2edfa"/>
+  <text x="1160" y="174" text-anchor="middle" class="ttl" font-size="12">evacuate</text>
+  <text x="1160" y="192" text-anchor="middle" class="sub">people, routes</text>
+
+  <rect x="1222" y="150" width="108" height="62" rx="8" class="box" fill="#fff8ed"/>
+  <text x="1276" y="174" text-anchor="middle" class="ttl" font-size="12">monitor</text>
+  <text x="1276" y="192" text-anchor="middle" class="sub">runtime check</text>
+
+  <path d="M1044,212 L1044,274" class="wP"/>
+  <path d="M1160,212 L1160,274" class="wP"/>
+  <path d="M1276,212 L1276,274" class="wP"/>
+
+  <!-- spec feeds the monitor -->
+  <path d="M956,412 C1030,412 1300,400 1300,216" class="wP"/>
+  <text x="1040" y="404" class="lb" fill="#6c3fa8">same properties, checked live</text>
+
+  <!-- ============ TWIN ============ -->
+  <rect x="978" y="282" width="352" height="330" rx="10" class="box" fill="#f7f9fb"/>
+  <text x="1154" y="308" text-anchor="middle" class="ttl">BuildSim — the digital twin</text>
+  <text x="1154" y="325" text-anchor="middle" class="sub">REST on :9090 · state in memory · no authentication</text>
+
+  <rect x="994" y="338" width="162" height="52" rx="7" class="box"/>
+  <text x="1075" y="359" text-anchor="middle" class="lb" font-weight="700">equipment + sensors</text>
+  <text x="1075" y="377" text-anchor="middle" class="sub">temperature · smoke</text>
+
+  <rect x="1166" y="338" width="150" height="52" rx="7" class="box"/>
+  <text x="1241" y="359" text-anchor="middle" class="lb" font-weight="700">actuators</text>
+  <text x="1241" y="377" text-anchor="middle" class="sub">heater · alarm</text>
+
+  <rect x="994" y="400" width="162" height="52" rx="7" class="box"/>
+  <text x="1075" y="421" text-anchor="middle" class="lb" font-weight="700">effects</text>
+  <text x="1075" y="439" text-anchor="middle" class="sub">fire and smoke plumes</text>
+
+  <rect x="1166" y="400" width="150" height="52" rx="7" class="box"/>
+  <text x="1241" y="421" text-anchor="middle" class="lb" font-weight="700">entities + routes</text>
+  <text x="1241" y="439" text-anchor="middle" class="sub">occupants, escape path</text>
+
+  <rect x="994" y="462" width="322" height="46" rx="7" class="box"/>
+  <text x="1155" y="482" text-anchor="middle" class="lb" font-weight="700">alerts</text>
+  <text x="1155" y="499" text-anchor="middle" class="sub">fire-* from evacuate · spec-* from monitor · merged, not replaced</text>
+
+  <rect x="994" y="518" width="322" height="44" rx="7" fill="#eceff1" stroke="#cfd8dc"/>
+  <text x="1155" y="538" text-anchor="middle" class="lb" font-weight="700">graph / routing</text>
+  <text x="1155" y="554" text-anchor="middle" class="sub">a locked door is excluded from walkable paths</text>
+
+  <text x="1155" y="588" text-anchor="middle" class="sub">restart it and the floor plan empties until an agent re-registers</text>
+
+  <!-- ============ LAPTOP ============ -->
+  <rect x="1040" y="60" width="230" height="58" rx="9" class="box" fill="#eceff1"/>
+  <text x="1155" y="83" text-anchor="middle" class="ttl" font-size="13">Laptop browser</text>
+  <text x="1155" y="101" text-anchor="middle" class="sub">192.168.1.45:9090 · REST + WebSocket</text>
+  <path d="M1100,278 C1080,200 1090,150 1120,122" class="wK"/>
+
+  <!-- ============ AGENT <-> TWIN ============ -->
+  <path d="M688,700 C820,700 900,660 974,612" class="wB"/>
+  <text x="760" y="690" class="lb" fill="#1a5fb4">PUT readings and actuator states</text>
+
+  <path d="M974,634 C880,700 800,744 688,744" class="wB"/>
+  <text x="742" y="762" class="lb" fill="#1a5fb4">GET smoke — the only arrow pointing inward</text>
+
+  <!-- ============ LEGEND ============ -->
+  <rect x="38" y="804" width="1292" height="146" rx="10" fill="#f7f9fb" stroke="#c7ced6"/>
+  <text x="60" y="830" class="ttl">How to read it</text>
+
+  <line x1="62" y1="852" x2="110" y2="852" stroke="#1b7f4c" stroke-width="2.6"/>
+  <text x="122" y="856" class="lb"><tspan font-weight="700">green</tspan> — physical, on this board. No network involved at all.</text>
+
+  <line x1="62" y1="876" x2="110" y2="876" stroke="#1a5fb4" stroke-width="2.6"/>
+  <text x="122" y="880" class="lb"><tspan font-weight="700">blue</tspan> — the control loop, and its HTTP traffic to the twin.</text>
+
+  <line x1="640" y1="852" x2="688" y2="852" stroke="#c75b00" stroke-width="2.6"/>
+  <text x="700" y="856" class="lb"><tspan font-weight="700">orange</tspan> — the model call. Present only in the LLM agent.</text>
+
+  <line x1="640" y1="876" x2="688" y2="876" stroke="#6c3fa8" stroke-width="2" stroke-dasharray="7 4"/>
+  <text x="700" y="880" class="lb"><tspan font-weight="700">purple dashed</tspan> — the specification, and processes that observe rather than control.</text>
+
+  <text x="62" y="908" class="sub">The control loop depends only on green: a sensor on the Pi's own bus, and a relay on its own pin. If the twin, the model or the network disappears, the room is still controlled correctly.</text>
+  <text x="62" y="928" class="sub">Smoke is the exception, and the compromise: the Pi has no analogue input and no ADC, so the one sensor that cannot be real is fetched from the twin — which is what lets a simulated fire sound a real buzzer.</text>
+</svg>

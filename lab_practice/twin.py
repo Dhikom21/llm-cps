@@ -163,6 +163,66 @@ def publish_actuator(room, actuator, state):
          {"data_type": "text", "value": state})
 
 
+def read_temp(room):
+    """The temperature the twin currently shows for a room.
+
+    Used by the monitor, which deliberately reads the published values rather
+    than the sensors directly: a monitor should watch what the system claims,
+    not re-derive it. If the agent stops publishing, the monitor sees a frozen
+    signal — which is itself something worth catching.
+    """
+    try:
+        r = requests.get(f"{BUILDSIM}/api/sensors/{temp_val(room)}",
+                         timeout=HTTP_TIMEOUT)
+        r.raise_for_status()
+        return float(r.json().get("value"))
+    except (requests.RequestException, ValueError, TypeError) as e:
+        _warn(e)
+        return None
+
+
+def read_actuator(room, actuator):
+    """'on' | 'off' | None — the state the twin shows for an actuator."""
+    try:
+        r = requests.get(
+            f"{BUILDSIM}/api/actuators/{actuator_state_id(room, actuator)}",
+            timeout=HTTP_TIMEOUT)
+        r.raise_for_status()
+        body = r.json()
+        return body.get("state") or body.get("value")
+    except (requests.RequestException, ValueError, TypeError) as e:
+        _warn(e)
+        return None
+
+
+def get_alerts():
+    try:
+        r = requests.get(f"{BUILDSIM}/api/alerts", timeout=HTTP_TIMEOUT)
+        r.raise_for_status()
+        body = r.json()
+        return body if isinstance(body, list) else body.get("alerts", [])
+    except (requests.RequestException, ValueError, TypeError):
+        return []
+
+
+def merge_alerts(prefix, cards):
+    """Replace only the cards whose id starts with `prefix`, keeping others.
+
+    /api/alerts replaces the entire collection on every write, so two processes
+    writing it would erase each other — the evacuation service owns 'fire-*'
+    cards and the monitor owns 'spec-*' ones. Read, substitute our own, write
+    back.
+
+    This is read-modify-write and therefore racy: if both write in the same
+    instant one update is lost. Acceptable here because both rewrite their full
+    set every cycle, so a lost update is corrected within seconds. Worth
+    knowing rather than discovering during a demo.
+    """
+    keep = [c for c in get_alerts()
+            if not str(c.get("id", "")).startswith(prefix)]
+    _put("/api/alerts", keep + list(cards))
+
+
 def set_smoke(room, volts):
     """Used by inject_fire.py. Raises on failure — a fault injector that
     silently does nothing is worse than none, because you would sit waiting
