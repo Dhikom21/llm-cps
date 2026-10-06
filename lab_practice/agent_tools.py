@@ -82,9 +82,11 @@ SCHEMAS = [
         "function": {
             "name": "set_actuator",
             "description": "Change an actuator. The only way to affect the "
-                           "physical world. Rejected unless the room and "
-                           "actuator exist, the state is legal, and a reason "
-                           "is given.",
+                           "physical world. ALL THREE arguments are required — "
+                           "a call without \"state\" is rejected and nothing "
+                           "happens. Example: "
+                           "{\"actuator\": \"A109/buzzer\", \"state\": \"on\", "
+                           "\"reason\": \"A109 smoke_v 3.00 above threshold 1.0\"}",
             "parameters": {
                 "type": "object",
                 "properties": {

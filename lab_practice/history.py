@@ -130,20 +130,39 @@ def prune():
 
 
 # ---------------- read path 1: the prompt window ----------------
-def window(room, n=None):
+def window(room, n=None, max_age_s=None):
     """The last n readings, oldest first — small enough to put in a prompt.
 
     This is what lets a model see a trend rather than a single instant. Note it
     is PUSHED: the agent decides what the model sees. Contrast query() below,
     where the model decides.
+
+    Two things here are not cosmetic.
+
+    MAX AGE. Without it, "the last six readings" could be six readings from
+    yesterday's run. That actually happened: a previous fire left 3.0 V rows in
+    the database, the agent restarted, and the model was handed a window full
+    of old smoke readings alongside a current value of 0.10 V. It concluded
+    smoke was above threshold — which looked like a hallucination and was us
+    feeding it stale data. Readings older than the window are now dropped, and
+    an empty list is the honest answer when nothing recent exists.
+
+    AGE, NOT TIMESTAMP. A unix epoch means nothing to a language model: it
+    cannot tell that 1791286450 was six minutes ago. Seconds-ago is immediately
+    interpretable, and it makes "this reading is stale" something the model can
+    actually notice.
     """
     n = n or WINDOW_N
+    max_age = TREND_WINDOW_S if max_age_s is None else max_age_s
+    now = time.time()
     with _lock:
         rows = _db().execute(
-            "SELECT ts, temp_c, smoke_v FROM readings WHERE room = ? "
-            "ORDER BY ts DESC LIMIT ?", (room, n)).fetchall()
+            "SELECT ts, temp_c, smoke_v FROM readings "
+            "WHERE room = ? AND ts >= ? ORDER BY ts DESC LIMIT ?",
+            (room, now - max_age, n)).fetchall()
     rows.reverse()
-    return [{"t": round(ts, 1), "temp_c": t, "smoke_v": s} for ts, t, s in rows]
+    return [{"age_s": round(now - ts, 1), "temp_c": t, "smoke_v": s}
+            for ts, t, s in rows]
 
 
 def trend(room, seconds=None):

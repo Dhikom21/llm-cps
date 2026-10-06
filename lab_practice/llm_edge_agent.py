@@ -128,6 +128,16 @@ Work in this order each cycle:
      with a reason citing what you actually read.
   4. Finish with one short sentence of plain text and no further tool calls.
 
+set_actuator takes THREE arguments and all three are required. A call without
+"state" is rejected and nothing happens. It must look exactly like this:
+
+    {{"actuator": "A109/buzzer", "state": "on",
+      "reason": "A109 smoke_v 3.00 is above its smoke_threshold of 1.0"}}
+
+Judge each room only by ITS OWN current smoke_v and temp_c. The `recent` list
+is history: a 3.0 reading with age_s 240 is four minutes old and says nothing
+about now. Never claim a value is above a threshold unless the CURRENT value is.
+
 If a tool returns an error or no rows, say so. Never state a finding that your
 tool results do not support."""
 
