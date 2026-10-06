@@ -39,6 +39,12 @@ import time
 DB_PATH   = os.environ.get("HISTORY_DB", "pi_readings.sqlite")
 RETAIN_S  = float(os.environ.get("HISTORY_RETAIN_S", "3600"))   # 1 hour
 WINDOW_N  = int(os.environ.get("HISTORY_WINDOW_N", "6"))
+
+# The trend window must span several cycles or it contains one sample and the
+# slope is undefined. On-CPU inference pushes cycles past 30 s, so a 30 s window
+# silently reported "no trend" for every reading — the agent then could not see
+# a ramp at all, which looked like a model failure and was ours.
+TREND_WINDOW_S = float(os.environ.get("TREND_WINDOW_S", "180"))
 QUERY_MAX_ROWS = 200
 
 MQTT_HOST = os.environ.get("MQTT_HOST", "localhost")
@@ -140,7 +146,7 @@ def window(room, n=None):
     return [{"t": round(ts, 1), "temp_c": t, "smoke_v": s} for ts, t, s in rows]
 
 
-def trend(room, seconds=30.0):
+def trend(room, seconds=None):
     """Change per second over the last `seconds`, as a plain number.
 
     Computed here rather than left for the model to infer from the series. Both
@@ -148,6 +154,7 @@ def trend(room, seconds=30.0):
     a 3B model, and including it lets the experiments separate "could not see
     the trend" from "saw it and ignored it".
     """
+    seconds = TREND_WINDOW_S if seconds is None else seconds
     cutoff = time.time() - seconds
     with _lock:
         rows = _db().execute(

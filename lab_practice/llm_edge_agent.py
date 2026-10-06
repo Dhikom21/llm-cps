@@ -97,15 +97,20 @@ Each room also carries `recent` (its last few readings, oldest first) and
 `trend` (change per second). Use them: a value that is rising fast may warrant
 acting before it crosses a threshold.
 
+Report the state each actuator SHOULD be in. Not what to change — what should
+be true. Listing a state that already holds is fine and costs nothing; the
+system works out what actually needs changing.
+
 Reply with JSON only, no prose, in exactly this form:
 
-{{"actions": [{{"actuator": "A109/heater", "state": "off", "reason": "A109 smoke 3.00 V above threshold"}}]}}
+{{"desired": [{{"actuator": "A109/heater", "state": "off", "reason": "A109 smoke 3.00 V above its threshold of 1.0"}},
+              {{"actuator": "A109/buzzer", "state": "on",  "reason": "A109 smoke 3.00 V above its threshold of 1.0"}}]}}
 
 Rules:
-  - Include an action only when that actuator's state should CHANGE. If nothing
-    needs to change, reply {{"actions": []}}.
+  - Give an entry for EVERY actuator listed above, every cycle. All four.
   - Every reason must be at least 5 characters, name the room it concerns, and
-    cite only values present in the data you were given. Do not invent readings.
+    cite only values present in the data you were given. Do not invent readings,
+    and do not claim a value is above a threshold unless it actually is.
   - Never name an actuator outside the list above."""
 
 REACT_PROMPT = f"""You are the control agent for a building.
@@ -142,7 +147,20 @@ def _chat(messages, tools=None):
 
 # ---------------- mode 1: snapshot ----------------
 def run_snapshot(building, snapshot):
-    """One round trip. The model is told everything and replies with actions."""
+    """One round trip. The model declares DESIRED STATE; we compute the delta.
+
+    The earlier version asked "what should change?", which requires comparing
+    current against wanted and suppressing the result — a two-step operation
+    with a negative conclusion, and the thing small models follow least
+    reliably. It answered "what should be true?" instead, and kept restating
+    states that already held.
+
+    So the interface now asks the question it was already answering. Declaring
+    a state that already holds is harmless: pi_guard drops it as a no-op and
+    nothing is commanded. This is how declarative systems work — you state the
+    desired state and the controller reconciles — and it puts the diffing in
+    Python instead of depending on a 3B model's compliance.
+    """
     msg = _chat([{"role": "system", "content": SNAPSHOT_PROMPT},
                  {"role": "user", "content": json.dumps(snapshot["rooms"])}])
     text = msg.get("content") or ""
@@ -152,16 +170,32 @@ def run_snapshot(building, snapshot):
     match = re.search(r"\{.*\}", text, re.S)
     if not match:
         raise ValueError(f"no JSON in reply: {text[:160]}")
-    actions = json.loads(match.group(0)).get("actions") or []
+    parsed = json.loads(match.group(0))
+
+    # "actions" is still accepted so older runs and logs remain comparable.
+    declared = parsed.get("desired") or parsed.get("actions") or []
     print(f"  [model] {text.strip()[:240]}")
 
-    for action in actions:
-        applied, _, _ = pi_guard.apply(building, action, snapshot, source="llm")
+    seen = set()
+    for item in declared:
+        applied, _, _ = pi_guard.apply(building, item, snapshot, source="llm")
+        room, actuator = rooms.parse_actuator_id(item.get("actuator"))
+        if room in rooms.ROOMS and actuator in rooms.ACTUATORS:
+            seen.add(rooms.actuator_id(room, actuator))
         if applied:
-            room, actuator = rooms.parse_actuator_id(action["actuator"])
-            twin.publish_actuator(room, actuator, action["state"])
-    if not actions:
-        print("  [decision] no change")
+            twin.publish_actuator(room, actuator, item["state"])
+
+    # Which actuators did it never mention? An omitted buzzer during a fire is
+    # the half-performed safety response, and this is how it becomes a number
+    # rather than something noticed by eye in a console.
+    omitted = [i for i in _ids if i not in seen]
+    pi_guard.audit({"source": "llm", "kind": "coverage",
+                    "declared": sorted(seen), "omitted": omitted,
+                    "snapshot_read_at": snapshot.get("read_at")})
+    if omitted:
+        print(f"  [omitted] never mentioned: {', '.join(omitted)}")
+    if not declared:
+        print("  [decision] nothing declared")
 
 
 # ---------------- mode 2: react ----------------
@@ -264,6 +298,13 @@ mode = AGENT_MODE if AGENT_MODE in ("snapshot", "react") else "snapshot"
 print(f"LLM agent on {rooms.names()}: model={LLM_MODEL} at {LLM_BASE_URL}")
 print(f"mode={mode}, cycle={CYCLE_S}s, history={history.DB_PATH}, "
       f"audit={pi_guard.AUDIT_PATH}. Ctrl-C to stop.")
+print(f"staleness limit {pi_guard.MAX_READING_AGE_S:.0f}s, "
+      f"trend window {history.TREND_WINDOW_S:.0f}s")
+
+# Measured once, then checked against the staleness limit. Without this warning
+# a too-tight limit refuses every action and the run looks like a model failure
+# when it is a configuration one.
+_latency_warned = False
 
 cycle = 0
 try:
@@ -306,7 +347,14 @@ try:
                 run_react(building, snapshot)
             else:
                 run_snapshot(building, snapshot)
-            print(f"  [llm {time.time() - started:.1f}s]")
+            elapsed = time.time() - started
+            print(f"  [llm {elapsed:.1f}s]")
+            if elapsed > pi_guard.MAX_READING_AGE_S * 0.7 and not _latency_warned:
+                print(f"  [WARN] inference takes {elapsed:.0f}s but readings go "
+                      f"stale at {pi_guard.MAX_READING_AGE_S:.0f}s — actions "
+                      f"will start being refused as H4. "
+                      f"Raise MAX_READING_AGE_S or use a smaller model.")
+                _latency_warned = True
         except Exception as exc:
             print(f"  [model] failed: {exc} -> falling back to rule")
             pi_guard.audit({"source": "llm", "applied": False,
