@@ -36,6 +36,7 @@ import signal
 import time
 
 import edge_agent_rules
+import history
 import pi_guard
 import rooms
 import twin
@@ -80,11 +81,16 @@ try:
         snapshot = {"read_at": read_at, "rooms": {}}
 
         for room in building.rooms():
-            temp = building.read_temperature(room)
+            temp  = building.read_temperature(room)
+            smoke = building.read_smoke(room)
+            # The baseline feeds the same pipeline as the LLM agent, so both
+            # runs leave comparable history and either can be analysed the
+            # same way afterwards.
+            history.record(room, temp, smoke, read_at)
             lo, hi = rooms.band(room)
             snapshot["rooms"][room] = {
                 "temp_c": temp,
-                "smoke_v": building.read_smoke(room),
+                "smoke_v": smoke,
                 "comfort_band": [lo, hi],
                 "smoke_threshold": rooms.SMOKE_THRESHOLD,
                 **building.state(room),

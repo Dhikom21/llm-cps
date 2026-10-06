@@ -106,7 +106,13 @@ def main():
         return 1
 
     command = argv[0].lower()
-    target = argv[1] if len(argv) > 1 else rooms.names()[0]
+
+    # Default to a room with REAL actuators, not simply the first name
+    # alphabetically. Sorted order puts A108 first, and setting the virtual
+    # room alight produces no sound at all — which looks exactly like a bug.
+    default_room = next((r for r in rooms.names() if rooms.is_real(r, "buzzer")),
+                        rooms.names()[0])
+    target = argv[1] if len(argv) > 1 else default_room
 
     targets = rooms.names() if target.lower() == "all" else [target]
     for room in targets:
