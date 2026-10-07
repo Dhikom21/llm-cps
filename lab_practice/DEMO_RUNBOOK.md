@@ -68,7 +68,7 @@ export SENSOR_A108=000011a8870a
 
 ```bash
 cd ~/llm-cps/lab_practice
-export BUILDSIM_URL=http://localhost:9090
+
 python3 evacuate.py
 ```
 
@@ -114,23 +114,29 @@ Same rig, same fire, different brain. The model proposes actions as JSON;
 `pi_guard.py` decides whether each one reaches a pin, and records every attempt
 with a taxonomy code.
 
-## B1 · One-time — install the model on the Pi
+## B1 · One-time — point at the model
 
-Only needed the first time.
+The LTU endpoint the Pi can reach is **canopus** over HTTPS. Confirm it and
+take the exact model id:
 
 ```bash
-curl -fsSL https://ollama.com/install.sh | sh
-ollama pull qwen2.5:3b
-curl -s http://localhost:11434/v1/models | head -c 200
+export LLM_BASE_URL=https://canopus.eislab.se/v1
+export LLM_MODEL=qwen3.8-27b
+export LLM_API_KEY=sk-...        # keep the real key out of this file
+
+curl -s -m 10 -H "Authorization: Bearer $LLM_API_KEY" $LLM_BASE_URL/models
 ```
 
-The 3B rather than the 1.5B: small models' usual failure is malformed JSON,
-which is noise in the results rather than a finding.
+`LLM_MODEL` must match the `id` field exactly — a mismatch gives a 404 that
+reads like a connection failure. The model must also support **tool-calling**;
+that is a hard requirement, not a preference.
 
-> Using the LTU GPU model instead? Only two variables change:
-> `LLM_BASE_URL=http://carbon.eislab.se:30000/v1` and
-> `LLM_MODEL=Qwen3.6-35B-A3B`, plus `LLM_API_KEY`. The Pi cannot reach that
-> host directly — it is inside LTU — so it needs a tunnel or a VPN first.
+> Put the key in `~/.llm-env` and `source` it rather than in a file that gets
+> committed: `echo 'export LLM_API_KEY=sk-...' > ~/.llm-env && chmod 600 ~/.llm-env`
+>
+> No network? A local model works identically with two variables changed:
+> `curl -fsSL https://ollama.com/install.sh | sh`, `ollama pull qwen2.5:3b`,
+> then `LLM_BASE_URL=http://localhost:11434/v1` and `LLM_MODEL=qwen2.5:3b`.
 
 ## B2 · Terminal 1 — BuildSim (the twin)
 
@@ -152,16 +158,19 @@ Check the model returns usable JSON before letting it near the relay:
 cd ~/llm-cps && git pull
 cd lab_practice
 
-export LLM_BASE_URL=http://localhost:11434/v1
-export LLM_MODEL=qwen2.5:3b
-export LLM_API_KEY=ollama
+source ~/.llm-env
+export LLM_BASE_URL=https://canopus.eislab.se/v1
+export LLM_MODEL=qwen3.8-27b
 export CYCLE_S=10
 
 HW=fake AUDIT_PATH=/tmp/dryrun.jsonl python3 llm_edge_agent.py
 ```
 
-Watch the `[model 2.3s] {...}` lines — both the content and the latency.
-Ctrl-C when satisfied.
+Watch the `[action]` / `[observ]` lines: which tools it calls, what it does
+with the results, and how long a cycle takes. Ctrl-C when satisfied.
+
+If every cycle ends in `[model] failed: ... 400`, the model is not doing
+tool-calling. That is a hard requirement — note it and try another model.
 
 If latency approaches `CYCLE_S`, raise `CYCLE_S`. If it approaches
 `MAX_READING_AGE_S` (default 15 s) the guard will start refusing actions as
@@ -176,34 +185,33 @@ pkill -f edge_agent.py              # two processes cannot share the GPIO pins
 
 export BUILDSIM_URL=http://localhost:9090
 export BAND_LO=24 BAND_HI=25
-export AGENT_MODE=snapshot          # or: react
+export AUDIT_PATH=run-llm.jsonl
 python3 llm_edge_agent.py
 ```
 
-### The two modes
+### How the agent works
 
-| | `snapshot` | `react` |
-|---|---|---|
-| how the model learns | **told** — everything in the prompt | **asks** — calls tools |
-| round trips per cycle | 1 | up to `MAX_HOPS` (5) |
-| can it look at history? | only what it was given | yes, writes its own SQL |
-| needs tool-calling support | no | yes |
+The model is given tools and decides what to look at — `read_sensors` for the
+current state, `query_history` to write its own SQL over the readings,
+`set_actuator` to act, `create_alert` to tell a human. Up to `MAX_HOPS` (5)
+round trips per cycle, then it must finish with a plain-text summary.
 
-Run both. `snapshot` is faster and more reliable; `react` is where the
-interesting failures live, because a model that can run a query can also report
-a finding its query never supported.
+That is the harder case on purpose. An agent that chooses its own evidence can
+reach a conclusion its evidence does not support: run a query, get an error or
+zero rows, and report a finding anyway. Every tool call and every result is
+logged, so a claim can be checked against what the agent actually had.
 
 ### The data pipeline
 
-Both agents now write every reading to SQLite (`pi_readings.sqlite`) and publish
-to MQTT if a broker is reachable. That gives the model two things it previously
-could not have:
+Every reading is written to SQLite (`pi_readings.sqlite`) and published to MQTT
+if a broker is reachable. That gives the model two things it would not otherwise
+have:
 
-- **`recent` and `trend` in every snapshot** — the last few readings and the
-  rate of change, so a rising value is distinguishable from a steady one. The
-  `ramp` experiment only means something with this in place.
-- **`query_history` in react mode** — arbitrary read-only SQL over the
-  `readings` table.
+- **`recent` and `trend` in every `read_sensors` result** — the last few
+  readings with their age, and the rate of change, so a rising value is
+  distinguishable from a steady one. The `ramp` experiment only means something
+  with this in place.
+- **`query_history`** — arbitrary read-only SQL over the `readings` table.
 
 The query tool is treated as untrusted input, because the model writes it:
 SELECT only, one statement, row cap, read-only connection. A refusal returns an

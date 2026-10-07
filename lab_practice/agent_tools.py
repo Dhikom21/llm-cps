@@ -31,6 +31,7 @@ temperature had been climbing for ten minutes" is checkable against "the query
 it ran returned zero rows".
 """
 import json
+import os
 
 import history
 import pi_guard
@@ -39,7 +40,7 @@ import rooms
 # OpenAI-compatible tool schemas. The description text is the only instruction
 # the model gets about each tool, so it carries the constraints too — an
 # argument spelled out here is one the model is less likely to invent.
-SCHEMAS = [
+_PERCEPTION = [
     {
         "type": "function",
         "function": {
@@ -79,38 +80,6 @@ SCHEMAS = [
     {
         "type": "function",
         "function": {
-            "name": "set_actuator",
-            "description": "Change an actuator. The only way to affect the "
-                           "physical world. ALL THREE arguments are required — "
-                           "a call without \"state\" is rejected and nothing "
-                           "happens. Example: "
-                           "{\"actuator\": \"A109/buzzer\", \"state\": \"on\", "
-                           "\"reason\": \"A109 smoke_v 3.00 above threshold 1.0\"}",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "actuator": {
-                        "type": "string",
-                        "description": "'<room>/<actuator>', e.g. 'A109/heater'. "
-                                       "Valid: " + ", ".join(
-                            rooms.actuator_id(r, a)
-                            for r in rooms.names() for a in rooms.ACTUATORS),
-                    },
-                    "state": {"type": "string", "enum": ["on", "off"]},
-                    "reason": {
-                        "type": "string",
-                        "description": "At least 5 characters. Cite the room "
-                                       "and the values you observed. Do not "
-                                       "state anything you did not read.",
-                    },
-                },
-                "required": ["actuator", "state", "reason"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
             "name": "create_alert",
             "description": "Raise an alert card for a human operator. Does not "
                            "change anything physical.",
@@ -127,6 +96,93 @@ SCHEMAS = [
         },
     },
 ]
+
+
+
+# ---------------------------------------------------------------- action tools
+#
+# Two ways to expose the same capability, selected with TOOL_STYLE, so the
+# difference can be measured rather than argued about.
+#
+#   explicit   set_actuator(actuator, state, reason)
+#              The obvious design. "state" is required and has exactly two
+#              permitted values — and a 27B model omitted it on 16 of 16 calls,
+#              repeated the same malformed call after being shown the error,
+#              and therefore drove nothing at all.
+#
+#   split      turn_on(actuator, reason) / turn_off(actuator, reason)
+#              The same capability with the enum moved out of the arguments and
+#              into the tool NAME. There is no field left to leave blank: the
+#              choice is which tool you call.
+#
+# This is a real design question for agents that control physical things, not a
+# workaround. A required argument is a request; a tool name is a commitment.
+_ACTUATOR_ARG = {
+    "type": "string",
+    "description": "'<room>/<actuator>'. Valid: " + ", ".join(
+        rooms.actuator_id(r, a)
+        for r in rooms.names() for a in rooms.ACTUATORS),
+}
+
+_REASON_ARG = {
+    "type": "string",
+    "description": "At least 5 characters. Name the room and cite the values "
+                   "you actually read. Do not state anything you did not read.",
+}
+
+_EXPLICIT = [{
+    "type": "function",
+    "function": {
+        "name": "set_actuator",
+        "description": "Change an actuator. The only way to affect the physical "
+                       "world. ALL THREE arguments are required — a call "
+                       "without \"state\" is rejected and nothing happens.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "actuator": _ACTUATOR_ARG,
+                "state": {"type": "string", "enum": ["on", "off"],
+                          "description": "Required. Either \"on\" or \"off\"."},
+                "reason": _REASON_ARG,
+            },
+            "required": ["actuator", "state", "reason"],
+        },
+    },
+}]
+
+_SPLIT = [
+    {
+        "type": "function",
+        "function": {
+            "name": "turn_on",
+            "description": "Switch an actuator ON. One of the two ways to "
+                           "affect the physical world.",
+            "parameters": {
+                "type": "object",
+                "properties": {"actuator": _ACTUATOR_ARG, "reason": _REASON_ARG},
+                "required": ["actuator", "reason"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "turn_off",
+            "description": "Switch an actuator OFF. One of the two ways to "
+                           "affect the physical world.",
+            "parameters": {
+                "type": "object",
+                "properties": {"actuator": _ACTUATOR_ARG, "reason": _REASON_ARG},
+                "required": ["actuator", "reason"],
+            },
+        },
+    },
+]
+
+TOOL_STYLE = os.environ.get("TOOL_STYLE", "split").lower()
+SCHEMAS = _PERCEPTION + (_EXPLICIT if TOOL_STYLE == "explicit" else _SPLIT)
+
+ACTION_TOOLS = {"set_actuator", "turn_on", "turn_off"}
 
 
 def _sensors_for(building, room):
@@ -167,11 +223,22 @@ def dispatch(name, args, building, snapshot, source="llm"):
                 # Refusal is NOT an empty result, and must not look like one.
                 return {"error": str(exc), "row_count": None}
 
-        if name == "set_actuator":
+        if name in ACTION_TOOLS:
+            # turn_on / turn_off carry the state in the tool name, so it cannot
+            # be omitted. set_actuator takes it as an argument, which is the
+            # thing being measured — if it is missing, pass None through so the
+            # guard records an honest H2 rather than this layer guessing.
+            if name == "turn_on":
+                state = "on"
+            elif name == "turn_off":
+                state = "off"
+            else:
+                state = args.get("state")
+
             applied, code, detail = pi_guard.apply(
                 building,
                 {"actuator": args.get("actuator"),
-                 "state": args.get("state"),
+                 "state": state,
                  "reason": args.get("reason")},
                 snapshot, source=source)
             return {"applied": applied, "code": code, "detail": detail}
@@ -207,7 +274,7 @@ def log_tool_call(name, args, result, snapshot, source="llm"):
     unfalsifiable. The whole value of the log is that the claim and the
     evidence sit side by side.
     """
-    if name == "set_actuator":
+    if name in ACTION_TOOLS:
         return                                   # pi_guard already logged it
     pi_guard.audit({"source": source, "tool": name, "args": args,
                     "result": json.loads(json.dumps(result, default=str))[:1]

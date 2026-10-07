@@ -178,6 +178,27 @@ def run_fallback(building, snapshot):
                 twin.publish_actuator(room, actuator, action["state"])
 
 
+# ---------------- perception ----------------
+def perceive(building, snapshot, read_at):
+    """Read every room, record it to the pipeline, publish what is real."""
+    for room in building.rooms():
+        temp  = building.read_temperature(room)
+        smoke = building.read_smoke(room)
+        history.record(room, temp, smoke, read_at)
+        lo, hi = rooms.band(room)
+        snapshot["rooms"][room] = {
+            "temp_c": temp,
+            "smoke_v": smoke,
+            "comfort_band": [lo, hi],
+            "smoke_threshold": rooms.SMOKE_THRESHOLD,
+            "recent": history.window(room),
+            "trend": history.trend(room),
+            **building.state(room),
+        }
+        if temp is not None:
+            twin.publish_temp(room, temp)
+
+
 # ---------------- main ----------------
 running = True
 
@@ -210,25 +231,21 @@ try:
         cycle += 1
 
         # ---- PERCEIVE: read, record, then build the snapshot ----
+        #
+        # Wrapped because perception touches hardware and a network. One
+        # unreadable sensor or a dropped connection must cost a cycle, not the
+        # run: an unattended controller that exits on the first surprise walks
+        # away leaving a relay in whatever state it happened to be in.
         read_at = time.time()
         snapshot = {"read_at": read_at, "rooms": {}}
-
-        for room in building.rooms():
-            temp  = building.read_temperature(room)
-            smoke = building.read_smoke(room)
-            history.record(room, temp, smoke, read_at)      # the pipeline
-            lo, hi = rooms.band(room)
-            snapshot["rooms"][room] = {
-                "temp_c": temp,
-                "smoke_v": smoke,
-                "comfort_band": [lo, hi],
-                "smoke_threshold": rooms.SMOKE_THRESHOLD,
-                "recent": history.window(room),             # option 1: trend
-                "trend": history.trend(room),
-                **building.state(room),
-            }
-            if temp is not None:
-                twin.publish_temp(room, temp)
+        try:
+            perceive(building, snapshot, read_at)
+        except Exception as exc:
+            print(f"  [perceive] failed: {exc} — skipping this cycle")
+            pi_guard.audit({"source": "agent", "applied": False,
+                            "code": "PERCEIVE_FAILED", "detail": str(exc)})
+            time.sleep(CYCLE_S)
+            continue
 
         print(f"\n=== cycle {cycle} {time.strftime('%H:%M:%S')}")
         for room, d in snapshot["rooms"].items():

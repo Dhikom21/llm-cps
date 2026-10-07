@@ -32,28 +32,41 @@ Act on each room using THAT room's own numbers. Never use one room's reading to
 justify an action in another room."""
 
 
+# How the acting tools are described depends on which style is active, because
+# a prompt that describes a tool the model has not been given is worse than no
+# prompt at all.
+import agent_tools as _tools   # noqa: E402  (circular-safe: schemas only)
+
+if _tools.TOOL_STYLE == "explicit":
+    ACTION_INSTRUCTIONS = """To act, call set_actuator. It takes THREE arguments and all three are
+required; a call without "state" is rejected and nothing happens:
+
+    {"actuator": "<room>/<actuator>", "state": "<on|off>",
+     "reason": "<room> <the values you actually read>"}"""
+else:
+    ACTION_INSTRUCTIONS = """To act, call turn_on or turn_off. Which one you call IS the decision —
+there is no state argument to supply. Both take the same two arguments:
+
+    turn_on({"actuator": "<room>/<actuator>", "reason": "<room> <the values you actually read>"})
+    turn_off({"actuator": "<room>/<actuator>", "reason": "<room> <the values you actually read>"})"""
+
+
 REACT_PROMPT = f"""You are the control agent for a building.
 
 {GOALS}
 
 You have tools. Call read_sensors to see the current state, query_history when
-you need to know how something has changed over time, set_actuator to act, and
-create_alert to tell a human something.
+you need to know how something has changed over time, create_alert to tell a
+human something, and the acting tools described below to change an actuator.
 
 Work in this order each cycle:
   1. read_sensors (no room argument) to see every room.
   2. If a value looks unusual, query_history before concluding anything.
-  3. Call set_actuator only for actuators whose state should CHANGE, and always
-     with a reason citing what you actually read.
+  3. Act only on actuators whose state should CHANGE, always with a reason
+     citing what you actually read.
   4. Finish with one short sentence of plain text and no further tool calls.
 
-set_actuator takes THREE arguments and all three are required. A call without
-"state" is rejected and nothing happens. It must have this shape, with the
-angle brackets replaced by the actual room and the actual numbers you read —
-never by the placeholders themselves:
-
-    {{"actuator": "<room>/buzzer", "state": "<on|off>",
-      "reason": "<room> smoke_v <the value you read> against threshold <its threshold>"}}
+{ACTION_INSTRUCTIONS}
 
 Judge each room only by ITS OWN current smoke_v and temp_c. The `recent` list
 is history: a 3.0 reading with age_s 240 is four minutes old and says nothing

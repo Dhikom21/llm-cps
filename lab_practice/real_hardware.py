@@ -79,6 +79,7 @@ class RealBuilding:
         # ---- actuator state, including the virtual ones ----
         self._state = {room: {"heater": False, "buzzer": False}
                        for room in rooms.names()}
+        self._faults = {}          # room -> consecutive failed reads
 
         for room in rooms.names():
             twin.register_room(room)
@@ -88,12 +89,48 @@ class RealBuilding:
         return rooms.names()
 
     def read_temperature(self, room):
-        """REAL. Returns None if that room's sensor is missing — None is
-        honest, whereas a made-up number would be acted upon."""
+        """REAL. Returns None when the reading cannot be trusted.
+
+        None is honest: the controller refuses to act on it, whereas a
+        made-up number would be acted upon.
+
+        Every failure mode of a 1-Wire sensor is caught here rather than
+        allowed to propagate. A DS18B20 that briefly loses power returns its
+        reset value of 85 °C and the library raises; a sensor can also go
+        missing from the bus mid-run, or return a CRC failure. None of those
+        are reasons to stop controlling the other room, and before this was
+        caught, one bad reading killed the whole agent and left the heater in
+        whatever state it happened to be in.
+        """
         sensor = self._sensors.get(room)
         if sensor is None:
             return None
-        return round(sensor.get_temperature(), 2)
+        try:
+            value = round(sensor.get_temperature(), 2)
+        except Exception as exc:
+            self._sensor_fault(room, exc)
+            return None
+        self._faults.pop(room, None)          # it is reading again
+        return value
+
+    def _sensor_fault(self, room, exc):
+        """Complain once per fault, not once per cycle.
+
+        A sensor that fails every two seconds would otherwise fill the log with
+        the same line and bury everything else. The count is kept so the run
+        can report how flaky a sensor was.
+        """
+        first = room not in self._faults
+        self._faults[room] = self._faults.get(room, 0) + 1
+        if first:
+            print(f"[hw] {room} sensor unreadable: {type(exc).__name__}: {exc}")
+            if "85" in str(exc):
+                print(f"[hw] 85 °C is the DS18B20 power-on reset value — "
+                      f"check {room}'s VDD and GND jumpers and the 4.7 k pull-up")
+
+    def sensor_faults(self):
+        """{room: consecutive failed reads} — for the run report."""
+        return dict(self._faults)
 
     def read_smoke(self, room):
         """From the twin. No ADC on the Pi, so this is the simulated value."""
