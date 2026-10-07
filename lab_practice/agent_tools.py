@@ -1,9 +1,8 @@
 """
 agent_tools.py — what the model is allowed to ask for and allowed to do.
 
-The snapshot mode in llm_edge_agent.py TELLS the model everything up front.
-This module is the other half: the model can ASK. That is the difference
-between a program that calls an LLM and an agent.
+This is what makes the system an agent rather than a program that calls an
+LLM: the model is not handed a summary, it asks for what it wants to know.
 
 Four tools:
 
@@ -24,9 +23,9 @@ third, and never without a written reason.
 --------------------------------------------------------------------------
 A new failure surface, deliberately exposed
 --------------------------------------------------------------------------
-Giving the model a query tool creates a hallucination mode that snapshot mode
-cannot produce: writing a query, receiving an empty result or an error, and then
-reporting a finding anyway. Every tool call and its result is written to the
+Giving the model a query tool creates a failure mode that handing it a fixed
+summary could not: writing a query, receiving an empty result or an error, and
+then reporting a finding anyway. Every tool call and its result is written to the
 audit log precisely so that can be checked afterwards — "the agent said the
 temperature had been climbing for ten minutes" is checkable against "the query
 it ran returned zero rows".
