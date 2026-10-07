@@ -46,15 +46,15 @@ BUZZER_PIN = 27          # BCM (physical pin 13)
 BUZZER_HZ  = 2000        # a piezo needs switching, not DC
 
 
-class RealBuilding:
-    def __init__(self):
-        # ---- the single set of real actuators, owned by A109 ----
-        self._heater = OutputDevice(HEATER_PIN, active_high=True,
-                                    initial_value=False)
-        self._buzzer = PWMOutputDevice(BUZZER_PIN, frequency=BUZZER_HZ,
-                                       initial_value=0)
+class Sensors:
+    """Owns the 1-Wire bus. Touches no GPIO output, claims no pins.
 
-        # ---- temperature sensors, matched to rooms by ID ----
+    Separated from the actuators so the sensor process and the actuator
+    process can run independently. gpiozero claims an output pin exclusively,
+    so a single class owning both would mean only one process could ever exist.
+    """
+
+    def __init__(self):
         found = {s.id: s for s in W1ThermSensor.get_available_sensors()}
         if not found:
             raise RuntimeError(
@@ -67,24 +67,13 @@ class RealBuilding:
             if sid in found:
                 self._sensors[room] = found[sid]
             else:
-                # Loud, not silent. A room reading a sensor that is not there
-                # would otherwise show as a plausible-looking frozen number.
                 print(f"[hw] WARNING: {room} expects sensor {sid}, not found. "
                       f"Available: {sorted(found)}. "
                       f"Set SENSOR_{room}=<id> to correct this.")
-
         print(f"[hw] sensors mapped: "
               f"{ {r: s.id for r, s in self._sensors.items()} }")
+        self._faults = {}
 
-        # ---- actuator state, including the virtual ones ----
-        self._state = {room: {"heater": False, "buzzer": False}
-                       for room in rooms.names()}
-        self._faults = {}          # room -> consecutive failed reads
-
-        for room in rooms.names():
-            twin.register_room(room)
-
-    # ---------- shared interface (identical to FakeBuilding) ----------
     def rooms(self):
         return rooms.names()
 
@@ -94,13 +83,10 @@ class RealBuilding:
         None is honest: the controller refuses to act on it, whereas a
         made-up number would be acted upon.
 
-        Every failure mode of a 1-Wire sensor is caught here rather than
-        allowed to propagate. A DS18B20 that briefly loses power returns its
-        reset value of 85 °C and the library raises; a sensor can also go
-        missing from the bus mid-run, or return a CRC failure. None of those
-        are reasons to stop controlling the other room, and before this was
-        caught, one bad reading killed the whole agent and left the heater in
-        whatever state it happened to be in.
+        Every failure mode of a 1-Wire sensor is caught here. A DS18B20 that
+        briefly loses power returns its reset value of 85 °C and the library
+        raises; a sensor can also vanish from the bus mid-run, or fail CRC.
+        None of those is a reason to stop controlling the other room.
         """
         sensor = self._sensors.get(room)
         if sensor is None:
@@ -113,28 +99,46 @@ class RealBuilding:
         self._faults.pop(room, None)          # it is reading again
         return value
 
-    def _sensor_fault(self, room, exc):
-        """Complain once per fault, not once per cycle.
+    def read_smoke(self, room):
+        """From the twin. No ADC on the Pi, so this is the simulated value."""
+        return twin.read_smoke(room)
 
-        A sensor that fails every two seconds would otherwise fill the log with
-        the same line and bury everything else. The count is kept so the run
-        can report how flaky a sensor was.
-        """
+    def _sensor_fault(self, room, exc):
+        """Complain once per fault, not once per cycle."""
         first = room not in self._faults
         self._faults[room] = self._faults.get(room, 0) + 1
         if first:
             print(f"[hw] {room} sensor unreadable: {type(exc).__name__}: {exc}")
             if "85" in str(exc):
                 print(f"[hw] 85 °C is the DS18B20 power-on reset value — "
-                      f"check {room}'s VDD and GND jumpers and the 4.7 k pull-up")
+                      f"check {room}'s VDD and GND jumpers and the pull-up")
 
     def sensor_faults(self):
-        """{room: consecutive failed reads} — for the run report."""
         return dict(self._faults)
 
-    def read_smoke(self, room):
-        """From the twin. No ADC on the Pi, so this is the simulated value."""
-        return twin.read_smoke(room)
+    def close(self):
+        pass                                   # nothing claimed, nothing to free
+
+
+class Actuators:
+    """Owns the GPIO pins, and is the only thing in the system that does.
+
+    One relay and one piezo exist, and A109 owns them. A108's actuators are
+    virtual: state is tracked and mirrored to the twin, but nothing moves.
+    """
+
+    def __init__(self):
+        self._heater = OutputDevice(HEATER_PIN, active_high=True,
+                                    initial_value=False)
+        self._buzzer = PWMOutputDevice(BUZZER_PIN, frequency=BUZZER_HZ,
+                                       initial_value=0)
+        self._state = {room: {"heater": False, "buzzer": False}
+                       for room in rooms.names()}
+        print(f"[hw] actuators claimed: GPIO{HEATER_PIN} relay, "
+              f"GPIO{BUZZER_PIN} piezo")
+
+    def rooms(self):
+        return rooms.names()
 
     def set_heater(self, room, on):
         self._state[room]["heater"] = bool(on)
@@ -158,6 +162,38 @@ class RealBuilding:
         self._heater.off()
         for room in rooms.names():
             self._state[room] = {"heater": False, "buzzer": False}
+
+
+class RealBuilding(Sensors, Actuators):
+    """Both halves in one object, for the single-process agents.
+
+    The split processes use Sensors and Actuators separately; this composes
+    them so edge_agent.py and the direct-mode LLM agent keep working unchanged.
+    """
+
+    def __init__(self):
+        Sensors.__init__(self)
+        Actuators.__init__(self)
+        for room in rooms.names():
+            twin.register_room(room)
+
+    def read_all_temperatures(self):
+        """Every DS18B20 as {sensor_id: degC}."""
+        return {s.id: round(s.get_temperature(), 2)
+                for s in self._sensors.values()}
+
+    def close(self):
+        Actuators.close(self)
+
+
+def get_sensors():
+    """For pi_sensor.py — the 1-Wire bus only."""
+    return Sensors()
+
+
+def get_actuators():
+    """For pi_actuator.py — the GPIO pins only."""
+    return Actuators()
 
 
 def get_building():

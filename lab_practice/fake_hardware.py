@@ -105,6 +105,19 @@ def get_building():
     return FakeBuilding()
 
 
+# The split processes ask for one half each. A FakeBuilding serves as either —
+# it simply has methods the caller does not use. The two processes therefore
+# hold SEPARATE simulated state, which is correct: in the real system the
+# sensor process cannot see the actuator process's pins either, and learns
+# actuator states over the bus like everyone else.
+def get_sensors():
+    return FakeBuilding()
+
+
+def get_actuators():
+    return FakeBuilding()
+
+
 if __name__ == "__main__":
     b = get_building()
     for _ in range(3):

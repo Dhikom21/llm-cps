@@ -65,6 +65,17 @@ import prompts
 import rooms
 import twin
 
+# AGENT_IO decides where the agent gets the world from.
+#
+#   bus     (default) the split architecture: pi_sensor.py publishes readings,
+#           pi_actuator.py owns the pins, and this process only reads the bus
+#           and asks. The agent holds no hardware at all.
+#
+#   direct  the single-process arrangement: this process reads the sensors and
+#           drives the pins itself. Simpler to run, and the shield sits in the
+#           same process as the model rather than behind a boundary.
+AGENT_IO = os.environ.get("AGENT_IO", "bus").lower()
+
 if os.environ.get("HW", "real") == "fake":
     import fake_hardware as hw
 else:
@@ -145,10 +156,21 @@ def run_react(building, snapshot):
             agent_tools.log_tool_call(name, args, result, snapshot)
             print(f"  [observ] {json.dumps(result, default=str)[:180]}")
 
-            if name == "set_actuator" and result.get("applied"):
+            # Mirror a successful action into the twin so the floor plan shows
+            # what the hardware is actually doing.
+            #
+            # The state comes from the TOOL NAME, not from the arguments —
+            # which is the same reason the tools are split in the first place.
+            # This previously tested for a tool called "set_actuator" that no
+            # longer exists, so the condition was never true and the viewer
+            # silently stopped reflecting anything the model did. The hardware
+            # was correct throughout; only the picture was wrong, which is the
+            # most awkward kind of bug to notice.
+            if name in agent_tools.ACTION_TOOLS and result.get("applied"):
                 room, actuator = rooms.parse_actuator_id(args.get("actuator"))
                 if room:
-                    twin.publish_actuator(room, actuator, args.get("state"))
+                    twin.publish_actuator(
+                        room, actuator, "on" if name == "turn_on" else "off")
 
             messages.append({"role": "tool",
                              "tool_call_id": call.get("id", name),
@@ -180,11 +202,28 @@ def run_fallback(building, snapshot):
 
 # ---------------- perception ----------------
 def perceive(building, snapshot, read_at):
-    """Read every room, record it to the pipeline, publish what is real."""
+    """Gather every room's state, and record it if nobody else is.
+
+    Where the two halves come from, and why:
+
+      the PRESENT  the latest value published by pi_sensor.py, held in memory
+                   by remote.py. Current, and never waits on a database.
+      the PAST     SQLite, which pi_consumer.py fills from the same stream.
+                   Older values, a trend, and anything the model asks for with
+                   query_history.
+
+    In bus mode the agent must NOT write to the database: pi_consumer.py
+    already stored these readings when they came off the bus, and a second
+    write would double every row — which would quietly corrupt the trend, the
+    recent window and every count derived from them.
+    """
+    distributed = hasattr(building, "command")
+
     for room in building.rooms():
         temp  = building.read_temperature(room)
         smoke = building.read_smoke(room)
-        history.record(room, temp, smoke, read_at)
+        if not distributed:
+            history.record(room, temp, smoke, read_at)
         lo, hi = rooms.band(room)
         snapshot["rooms"][room] = {
             "temp_c": temp,
@@ -195,7 +234,9 @@ def perceive(building, snapshot, read_at):
             "trend": history.trend(room),
             **building.state(room),
         }
-        if temp is not None:
+        # In bus mode pi_sensor.py already published this to the twin; doing
+        # it again here would be a second writer for the same value.
+        if temp is not None and not hasattr(building, "command"):
             twin.publish_temp(room, temp)
 
 
@@ -211,8 +252,23 @@ def stop(*_):
 signal.signal(signal.SIGINT, stop)
 signal.signal(signal.SIGTERM, stop)
 
-building = hw.get_building()
+if AGENT_IO == "bus":
+    import remote
+    try:
+        building = remote.get_building()
+        print("[io] bus mode — readings from pi_sensor.py, "
+              "commands to pi_actuator.py")
+    except Exception as exc:
+        raise SystemExit(
+            f"[io] cannot join the bus: {exc}\n"
+            f"     Start the broker and pi_sensor.py / pi_actuator.py, or run\n"
+            f"     this agent single-process with AGENT_IO=direct")
+else:
+    building = hw.get_building()
+    print("[io] direct mode — this process owns the sensors and the pins")
+
 twin.register_all()
+pi_guard.start_run("llm")
 
 print(f"LLM agent on {rooms.names()}: model={LLM_MODEL} at {LLM_BASE_URL}")
 print(f"tool-calling, max {MAX_HOPS} hops/cycle, cycle={CYCLE_S}s, "

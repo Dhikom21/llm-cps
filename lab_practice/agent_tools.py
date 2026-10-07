@@ -8,17 +8,18 @@ Four tools:
 
     read_sensors    current values for one room, or all of them
     query_history   arbitrary read-only SQL over the readings table
-    set_actuator    the only route to a pin, and it goes through pi_guard
+    turn_on
+    turn_off        the only route to a pin, and both go through pi_guard
     create_alert    put a card on the operator's screen
 
 --------------------------------------------------------------------------
 The point of the split
 --------------------------------------------------------------------------
 read_sensors and query_history are PERCEPTION — they can return nothing useful,
-but they cannot do harm. set_actuator is ACTION, and every call is validated and
-recorded by pi_guard before anything physical happens. A model may call the
-first two as often as it likes; it may never reach a pin except through the
-third, and never without a written reason.
+but they cannot do harm. turn_on and turn_off are ACTION, and every call is
+validated and recorded by pi_guard before anything physical happens. A model
+may call the perception tools as often as it likes; it may never reach a pin
+except through those two, and never without a written reason.
 
 --------------------------------------------------------------------------
 A new failure surface, deliberately exposed
@@ -31,7 +32,6 @@ temperature had been climbing for ten minutes" is checkable against "the query
 it ran returned zero rows".
 """
 import json
-import os
 
 import history
 import pi_guard
@@ -101,22 +101,19 @@ _PERCEPTION = [
 
 # ---------------------------------------------------------------- action tools
 #
-# Two ways to expose the same capability, selected with TOOL_STYLE, so the
-# difference can be measured rather than argued about.
+# The state lives in the TOOL NAME, not in an argument.
 #
-#   explicit   set_actuator(actuator, state, reason)
-#              The obvious design. "state" is required and has exactly two
-#              permitted values — and a 27B model omitted it on 16 of 16 calls,
-#              repeated the same malformed call after being shown the error,
-#              and therefore drove nothing at all.
+# The obvious design is set_actuator(actuator, state, reason), with "state"
+# required and restricted to two values. It does not survive contact with a
+# model: on hardware, a 27B omitted "state" on every call, repeated the same
+# malformed call after being shown the error, and therefore drove nothing at
+# all. A required argument is a request the model may decline; a tool name is a
+# commitment it cannot avoid making.
 #
-#   split      turn_on(actuator, reason) / turn_off(actuator, reason)
-#              The same capability with the enum moved out of the arguments and
-#              into the tool NAME. There is no field left to leave blank: the
-#              choice is which tool you call.
-#
-# This is a real design question for agents that control physical things, not a
-# workaround. A required argument is a request; a tool name is a commitment.
+# So there are two tools instead of one, and no field left to leave blank:
+# calling turn_on IS the decision. This is a design rule for agents that
+# control physical things, not a workaround — if a choice must be made, make it
+# structural rather than optional.
 _ACTUATOR_ARG = {
     "type": "string",
     "description": "'<room>/<actuator>'. Valid: " + ", ".join(
@@ -130,27 +127,7 @@ _REASON_ARG = {
                    "you actually read. Do not state anything you did not read.",
 }
 
-_EXPLICIT = [{
-    "type": "function",
-    "function": {
-        "name": "set_actuator",
-        "description": "Change an actuator. The only way to affect the physical "
-                       "world. ALL THREE arguments are required — a call "
-                       "without \"state\" is rejected and nothing happens.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "actuator": _ACTUATOR_ARG,
-                "state": {"type": "string", "enum": ["on", "off"],
-                          "description": "Required. Either \"on\" or \"off\"."},
-                "reason": _REASON_ARG,
-            },
-            "required": ["actuator", "state", "reason"],
-        },
-    },
-}]
-
-_SPLIT = [
+_ACTIONS = [
     {
         "type": "function",
         "function": {
@@ -179,10 +156,9 @@ _SPLIT = [
     },
 ]
 
-TOOL_STYLE = os.environ.get("TOOL_STYLE", "split").lower()
-SCHEMAS = _PERCEPTION + (_EXPLICIT if TOOL_STYLE == "explicit" else _SPLIT)
+SCHEMAS = _PERCEPTION + _ACTIONS
 
-ACTION_TOOLS = {"set_actuator", "turn_on", "turn_off"}
+ACTION_TOOLS = {"turn_on", "turn_off"}
 
 
 def _sensors_for(building, room):
@@ -224,17 +200,23 @@ def dispatch(name, args, building, snapshot, source="llm"):
                 return {"error": str(exc), "row_count": None}
 
         if name in ACTION_TOOLS:
-            # turn_on / turn_off carry the state in the tool name, so it cannot
-            # be omitted. set_actuator takes it as an argument, which is the
-            # thing being measured — if it is missing, pass None through so the
-            # guard records an honest H2 rather than this layer guessing.
-            if name == "turn_on":
-                state = "on"
-            elif name == "turn_off":
-                state = "off"
-            else:
-                state = args.get("state")
+            # The tool name carries the state, so it cannot be omitted.
+            state = "on" if name == "turn_on" else "off"
+            room, actuator = rooms.parse_actuator_id(args.get("actuator"))
 
+            if hasattr(building, "command"):
+                # Split architecture: the agent cannot drive a pin. It asks
+                # the actuator process, where the shield runs, and waits for
+                # the verdict so the model still learns in-cycle whether it
+                # was refused.
+                if room is None or actuator not in rooms.ACTUATORS:
+                    return {"applied": False, "code": "H1",
+                            "detail": f"malformed or unknown actuator "
+                                      f"{args.get('actuator')!r}"}
+                return building.command(room, actuator, state,
+                                        args.get("reason"), snapshot)
+
+            # Single-process: the guard runs here instead.
             applied, code, detail = pi_guard.apply(
                 building,
                 {"actuator": args.get("actuator"),

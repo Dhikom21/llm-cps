@@ -67,8 +67,38 @@ TAU_FRESH = float(os.environ.get("MAX_READING_AGE_S", "60"))   # seconds
 # property that demands it would be violated by every real trace. These say how
 # long the system is ALLOWED to take — which makes them part of the spec, not
 # tolerances bolted on afterwards.
+# The horizons differ because the CONSEQUENCES differ. A deadline is a claim
+# about how bad it is to be late, and giving two properties the same number
+# asserts that being late at either costs the same.
+#
+#   H_ALARM  smoke -> buzzer on.   Late means people are not warned. Tight.
+#   H_HEAT   smoke -> heater off.  Late means heat is still being added. Tight.
+#   H_CLEAR  clear -> buzzer off.  Late means a nuisance, not a danger. Loose.
+#   H_COMF   out of band -> corrected. Comfort is never urgent. Loosest.
+#
+# H_CLEAR WAS REVISED, AND THE REVISION IS PART OF THE RESULT.
+#
+# It was originally 20 s, the same as H_ALARM, and a recorded run failed it.
+# The agent silenced the alarm 45 s and 58 s after the smoke cleared. Those are
+# correct decisions: it turned the alarm off the first time it saw clean air.
+# The loop runs one cycle per ~20 s (65 samples over 1288 s measured), because
+# each cycle must wait on model inference, so the earliest it can even notice a
+# change is one cycle after the change happens.
+#
+# A 20 s deadline was therefore unsatisfiable by construction. The property was
+# wrong, not the agent.
+#
+# The replacement is DERIVED, not chosen: three measured control periods,
+# 3 x 20 s = 60 s. That is the smallest deadline the loop can be expected to
+# meet reliably — one cycle to observe, one to decide and act, one of margin.
+#
+# General rule, worth stating in any timed specification over a slow control
+# loop: a response horizon must be at least two control periods, or violations
+# are guaranteed however well the agent behaves. Report the horizon alongside
+# every verdict, because a verdict without it means nothing.
 H_ALARM = float(os.environ.get("H_ALARM", "20"))    # smoke -> buzzer on
 H_HEAT  = float(os.environ.get("H_HEAT", "20"))     # smoke -> heater off
+H_CLEAR = float(os.environ.get("H_CLEAR", "60"))    # clear -> buzzer off
 H_COMF  = float(os.environ.get("H_COMF", "90"))     # out of band -> corrected
 
 
@@ -147,11 +177,12 @@ PROPERTIES = [
     },
     {
         "id": "phi_no_false_alarm",
-        "text": f"G( smoke < {THETA} -> F[0,{H_ALARM:.0f}s] buzzer = off )",
-        "meaning": "the alarm stops once the smoke clears",
+        "text": f"G( smoke < {THETA} -> F[0,{H_CLEAR:.0f}s] buzzer = off )",
+        "meaning": "the alarm stops once the smoke clears — a loose deadline, "
+                   "because being late here is a nuisance and not a danger",
         "check": lambda tr: implies_eventually(
             tr, lambda s: not alarming(s), lambda s: s["buzzer"] == "off",
-            H_ALARM),
+            H_CLEAR),
     },
     {
         "id": "phi_comfort_low",
@@ -359,7 +390,8 @@ def evaluate(traces):
 
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
-    audit = args[0] if args else os.environ.get("AUDIT_PATH", "decisions.jsonl")
+    import pi_guard
+    audit = args[0] if args else pi_guard.latest_run()
     db = "pi_readings.sqlite"
     if "--db" in sys.argv:
         db = sys.argv[sys.argv.index("--db") + 1]

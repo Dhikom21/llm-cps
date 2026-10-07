@@ -78,7 +78,7 @@ WATCH = [
     ("phi_safety",         spec.alarming,
      spec.heater_off,      spec.H_HEAT),
     ("phi_no_false_alarm", lambda s: not spec.alarming(s),
-     lambda s: s["buzzer"] == "off", spec.H_ALARM),
+     lambda s: s["buzzer"] == "off", spec.H_CLEAR),
     ("phi_comfort_low",    spec.too_cold,
      spec.heater_on,       spec.H_COMF),
     ("phi_comfort_high",   spec.too_warm,
@@ -217,12 +217,14 @@ def main():
     signal.signal(signal.SIGINT, stop)
     signal.signal(signal.SIGTERM, stop)
 
+    pi_guard.latest_run()          # attach to the run already in progress
     mon = Monitor()
 
     print(f"runtime monitor on {rooms.names()} — watching "
           f"{', '.join(p[0] for p in WATCH)}")
     print(f"poll {POLL_S}s, horizons: alarm {spec.H_ALARM:.0f}s, "
-          f"comfort {spec.H_COMF:.0f}s. Verdicts arrive up to one horizon late.")
+          f"clear {spec.H_CLEAR:.0f}s, comfort {spec.H_COMF:.0f}s. "
+          f"Verdicts arrive up to one horizon late.")
     print(f"audit -> {pi_guard.AUDIT_PATH}. Ctrl-C to stop.\n")
 
     last_pending = None

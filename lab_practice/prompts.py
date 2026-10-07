@@ -32,19 +32,7 @@ Act on each room using THAT room's own numbers. Never use one room's reading to
 justify an action in another room."""
 
 
-# How the acting tools are described depends on which style is active, because
-# a prompt that describes a tool the model has not been given is worse than no
-# prompt at all.
-import agent_tools as _tools   # noqa: E402  (circular-safe: schemas only)
-
-if _tools.TOOL_STYLE == "explicit":
-    ACTION_INSTRUCTIONS = """To act, call set_actuator. It takes THREE arguments and all three are
-required; a call without "state" is rejected and nothing happens:
-
-    {"actuator": "<room>/<actuator>", "state": "<on|off>",
-     "reason": "<room> <the values you actually read>"}"""
-else:
-    ACTION_INSTRUCTIONS = """To act, call turn_on or turn_off. Which one you call IS the decision —
+ACTION_INSTRUCTIONS = """To act, call turn_on or turn_off. Which one you call IS the decision —
 there is no state argument to supply. Both take the same two arguments:
 
     turn_on({"actuator": "<room>/<actuator>", "reason": "<room> <the values you actually read>"})

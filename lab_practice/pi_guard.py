@@ -56,7 +56,57 @@ MIN_REASON_CHARS = 5
 # Report the number you used. "Actions blocked as stale" is only meaningful
 # alongside the threshold that defined stale.
 MAX_READING_AGE_S = float(os.environ.get("MAX_READING_AGE_S", "60"))
+# ---------------- where the evidence goes ----------------
+#
+# Each run gets its own file, automatically. Pooling two runs into one log
+# silently corrupts every number in the summary — a three-cycle run once
+# reported twelve stale-action blocks because the previous run was still in the
+# file — and nobody remembers to pass a filename every time.
+#
+# So an agent calls start_run() and gets runs/run-<timestamp>.jsonl, and the
+# path is recorded in runs/latest. Anything that needs to READ the current run
+# (the monitor, the verifier, the summariser) calls latest_run() and attaches
+# to the same file without being told which it is.
+#
+# Setting AUDIT_PATH explicitly still overrides both, for when you do want to
+# name a run.
+RUNS_DIR = os.environ.get("RUNS_DIR", "runs")
+_LATEST  = os.path.join(RUNS_DIR, "latest")
+
 AUDIT_PATH = os.environ.get("AUDIT_PATH", "decisions.jsonl")
+
+
+def start_run(tag=""):
+    """Begin a new run. Called by whatever is doing the controlling."""
+    global AUDIT_PATH
+    if os.environ.get("AUDIT_PATH"):
+        AUDIT_PATH = os.environ["AUDIT_PATH"]
+        return AUDIT_PATH
+    try:
+        os.makedirs(RUNS_DIR, exist_ok=True)
+        name = time.strftime("run-%Y%m%d-%H%M%S") + (f"-{tag}" if tag else "")
+        AUDIT_PATH = os.path.join(RUNS_DIR, name + ".jsonl")
+        with open(_LATEST, "w", encoding="utf-8") as fh:
+            fh.write(AUDIT_PATH)
+    except OSError as exc:
+        print(f"[audit] could not start a run file ({exc}) — using {AUDIT_PATH}")
+    return AUDIT_PATH
+
+
+def latest_run():
+    """Attach to the run already in progress, or the most recent one."""
+    global AUDIT_PATH
+    if os.environ.get("AUDIT_PATH"):
+        AUDIT_PATH = os.environ["AUDIT_PATH"]
+        return AUDIT_PATH
+    try:
+        with open(_LATEST, encoding="utf-8") as fh:
+            path = fh.read().strip()
+        if path:
+            AUDIT_PATH = path
+    except OSError:
+        pass                      # no run yet; keep the default
+    return AUDIT_PATH
 
 # The whitelist IS the safety boundary. It is derived from rooms.py, so a room
 # that does not exist in the configuration cannot be driven however convincingly
@@ -266,4 +316,7 @@ def summarise(path=None):
 
 
 if __name__ == "__main__":
-    print(json.dumps(summarise(), indent=2))
+    import sys
+    path = sys.argv[1] if len(sys.argv) > 1 else latest_run()
+    print(f"# {path}")
+    print(json.dumps(summarise(path), indent=2))

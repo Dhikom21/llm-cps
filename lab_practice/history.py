@@ -50,6 +50,13 @@ QUERY_MAX_ROWS = 200
 MQTT_HOST = os.environ.get("MQTT_HOST", "localhost")
 MQTT_PORT = int(os.environ.get("MQTT_PORT", "1883"))
 
+# Whether record() also announces the reading on MQTT.
+#
+# True for the single-process agents, which both sense and store. False for
+# pi_consumer.py, which is DOWNSTREAM of the bus: if it republished what it
+# had just received it would feed itself in a loop.
+PUBLISH_TO_MQTT = True
+
 _lock = threading.Lock()
 _conn = None
 _mqtt = None
@@ -104,6 +111,9 @@ def record(room, temp_c, smoke_v, ts=None):
             "INSERT INTO readings (ts, room, temp_c, smoke_v) VALUES (?,?,?,?)",
             (ts, room, temp_c, smoke_v))
         _db().commit()
+
+    if not PUBLISH_TO_MQTT:
+        return
 
     client = _broker()
     if client:

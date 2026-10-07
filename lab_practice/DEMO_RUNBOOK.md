@@ -138,7 +138,126 @@ that is a hard requirement, not a preference.
 > `curl -fsSL https://ollama.com/install.sh | sh`, `ollama pull qwen2.5:3b`,
 > then `LLM_BASE_URL=http://localhost:11434/v1` and `LLM_MODEL=qwen2.5:3b`.
 
-## B2 · Terminal 1 — BuildSim (the twin)
+## B2 · The split architecture — what runs where
+
+The agent touches no hardware. Five processes share the work and talk only
+through MQTT:
+
+```
+  1-Wire bus
+      │
+ pi_sensor.py ──┐
+                ├──► MQTT ──┬──► pi_consumer.py    → SQLite
+ pi_actuator.py ┘           ├──► llm_edge_agent.py
+      ▲                     ├──► evacuate.py
+      │                     └──► pi_twin_bridge.py → HTTP → BuildSim
+      └──── commands/# ─────────── llm_edge_agent.py
+```
+
+Each process has exactly one job:
+
+| Process | Owns | Knows nothing about |
+|---|---|---|
+| `pi_sensor.py` | the 1-Wire bus | BuildSim, the database, the agent |
+| `pi_consumer.py` | the SQLite store | sensors, pins |
+| `pi_actuator.py` | the GPIO pins **and the shield** | BuildSim, the database |
+| `pi_twin_bridge.py` | BuildSim's REST API | sensors, pins |
+| `llm_edge_agent.py` | the decision | all hardware |
+
+Why it is arranged this way:
+
+- **The shield is in a different process from the model.** `pi_guard` runs
+  inside `pi_actuator.py`, the only program holding the pins. The agent cannot
+  drive a pin at all — it can only ask, and be refused.
+- **One owner for the pins.** `gpiozero` claims outputs exclusively, so one
+  owner removes a whole class of conflict.
+- **The twin is just another subscriber.** Nothing publishes to BuildSim
+  directly; the bridge consumes the same stream as everyone else. If BuildSim
+  is down, only the bridge is affected.
+- **A sensor fault stops readings, not control.** Different programs.
+
+The broker is now on the control path, which is a real cost. It runs on the
+Pi's own localhost, and `pi_actuator.py` switches everything off if it hears
+no command for `COMMAND_TIMEOUT_S` (default 180 s) — losing contact with the
+controller is not a reason to keep heating.
+
+```bash
+sudo apt install -y mosquitto mosquitto-clients
+sudo systemctl enable --now mosquitto
+```
+
+> Prefer the old single-process arrangement? `AGENT_IO=direct` makes the agent
+> own the sensors and pins itself, and the four helper processes are then
+> unused. Simpler to run; the shield then sits in the same process as the model
+> rather than behind a boundary.
+
+## B3 · Start them in this order
+
+Each in its own terminal, all with `export BUILDSIM_URL=http://localhost:9090`.
+
+```bash
+# 1 — BuildSim
+cd ~/D7065E/buildingsim
+nohup ./bin/buildsim start --all-interfaces --port 9090 > ~/buildsim.log 2>&1 &
+
+cd ~/llm-cps/lab_practice
+
+# 2 — the pins (BEFORE the agent: it publishes retained states the agent reads)
+python3 pi_actuator.py
+
+# 3 — the sensors
+python3 pi_sensor.py
+
+# 4 — the pipeline
+python3 pi_consumer.py
+
+# 5 — the twin bridge
+python3 pi_twin_bridge.py
+
+# 6 — the agent
+source ~/.llm-env
+export LLM_BASE_URL=https://canopus.eislab.se/v1
+export LLM_MODEL=qwen3.8-27b
+export BAND_LO=24 BAND_HI=25
+python3 llm_edge_agent.py
+
+# 7 — the building response
+python3 evacuate.py
+
+# 8 — runtime verification
+python3 monitor.py
+
+# 9 — the fire
+python3 inject_fire.py ramp
+```
+
+Order matters in one place: **`pi_actuator.py` before the agent**, because it
+publishes the current actuator states as retained messages and the agent reads
+them on connect. Start it after and the agent begins by assuming everything is
+off.
+
+## Watching the bus
+
+The most useful window during a demo:
+
+```bash
+mosquitto_sub -t '#' -v
+```
+
+Readings flowing, commands going out, states coming back — the whole system's
+traffic in one place. You can also drive it by hand, which is the quickest way
+to show the shield works without involving a model:
+
+```bash
+mosquitto_pub -t 'commands/A109/buzzer' -m '{"state":"on","reason":"by hand"}'
+mosquitto_pub -t 'commands/B999/heater' -m '{"state":"on","reason":"phantom"}'
+```
+
+The first sounds the buzzer. The second prints `[BLOCKED H1] no such room` in
+the actuator's terminal and does nothing — the guard does not care whether a
+person or a model sent it.
+
+## B4 · Terminal 1 — BuildSim (the twin)## B4 · Terminal 1 — BuildSim (the twin)
 
 Identical to A1. Skip if it is already running.
 

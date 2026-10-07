@@ -67,6 +67,7 @@ signal.signal(signal.SIGTERM, stop)
 
 building = hw.get_building()
 twin.register_all()
+pi_guard.start_run("rule")
 
 print(f"edge agent (rule) on {rooms.names()}: "
       f"band {rooms.DEFAULT_BAND}, smoke threshold {rooms.SMOKE_THRESHOLD} V, "

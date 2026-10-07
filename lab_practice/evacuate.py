@@ -39,6 +39,7 @@ import time
 
 import requests
 
+import bus
 import rooms
 import twin
 
@@ -76,6 +77,54 @@ def put(path, payload):
     r = requests.put(f"{twin.BUILDSIM}{path}", json=payload, timeout=HTTP_TIMEOUT)
     r.raise_for_status()
     return r
+
+
+# ---------------- where smoke comes from ----------------
+#
+# On the bus, like everyone else. This service used to poll BuildSim directly
+# on its own schedule, which meant smoke had two consumers travelling two
+# different paths — and the evacuation could be reacting to a value the agent
+# had not seen yet, or the reverse.
+#
+# Now pi_sensor.py is the single origin of every reading and this subscribes
+# to the same stream the agent reads. One source, one path, no disagreement
+# about what the building is doing.
+#
+# If the broker is unreachable it falls back to polling the twin, because an
+# evacuation service that stops working when a broker hiccups is worse than
+# one that is briefly inconsistent.
+class SmokeSource:
+    def __init__(self):
+        self._latest = {}
+        self._bus = None
+        try:
+            self._bus = bus.Bus("evacuate").connect(timeout=3.0)
+            self._bus.subscribe(bus.ALL_READINGS, self._on_reading)
+            print(f"[bus] subscribed to {bus.ALL_READINGS}")
+        except Exception as exc:
+            print(f"[bus] unavailable ({exc}) — falling back to polling the twin")
+
+    def _on_reading(self, topic, payload):
+        room = payload.get("room")
+        if room:
+            self._latest[room] = payload
+
+    def read(self, room):
+        if self._bus is None:
+            return twin.read_smoke(room)
+        r = self._latest.get(room)
+        if r is None:
+            return 0.10                  # nothing heard yet: assume clean air
+        if time.time() - r.get("ts", 0) > 120:
+            # A stale reading is not evidence of anything. Treating it as clean
+            # is the same fail-quiet choice the hardware driver makes, with the
+            # same caveat: an outage will not raise an alarm.
+            return 0.10
+        return r.get("smoke_v", 0.10)
+
+    def close(self):
+        if self._bus:
+            self._bus.close()
 
 
 def people(room):
@@ -266,6 +315,7 @@ def stop(*_):
 signal.signal(signal.SIGINT, stop)
 signal.signal(signal.SIGTERM, stop)
 
+smoke_source = SmokeSource()
 register_exits()
 show_resting()
 print(f"evacuation service watching {rooms.names()}: "
@@ -276,7 +326,7 @@ active = {}          # room -> exit used (or None if no route)
 try:
     while running:
         for room in rooms.names():
-            smoke = twin.read_smoke(room)
+            smoke = smoke_source.read(room)
             burning = smoke >= rooms.SMOKE_THRESHOLD
 
             if burning and room not in active:
@@ -306,5 +356,6 @@ try:
 
         time.sleep(POLL_S)
 finally:
+    smoke_source.close()
     clear_all()
     print("\nstopped — twin cleared")
