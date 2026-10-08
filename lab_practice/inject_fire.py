@@ -24,18 +24,36 @@ Why a ramp as well as a switch:
 If BuildSim is elsewhere:
     export BUILDSIM_URL=http://192.168.1.45:9090
 """
+import os
 import sys
 import time
 
 import requests
 
+import pi_guard
 import rooms
 import twin
 
 CLEAN_AIR_V = 0.10
 FIRE_V      = 3.00
-RAMP_S      = 20.0
-RAMP_STEP_S = 1.0
+
+# How long the ramp takes, and how often it steps.
+#
+# These must be set against the SAMPLING rate of the system, not chosen for
+# convenience. The agent only ever sees values that pi_sensor.py happened to
+# publish while the ramp was passing through them, so a ramp faster than a few
+# sensing cycles is invisible: the agent observes clean air, then 3.0 V, and
+# nothing in between.
+#
+# That turns a trend experiment into a threshold experiment without anyone
+# noticing. Rule of thumb: the ramp should span at least five of whatever the
+# slowest link is — usually the agent's cycle, not the sensor's.
+#
+#     RAMP_S=20    fast step. Tests reaction to a THRESHOLD being crossed.
+#     RAMP_S=180   slow rise. Tests whether a TREND is detected and acted on
+#                  BEFORE the threshold, which is the harder question.
+RAMP_S      = float(os.environ.get("RAMP_S", "180"))
+RAMP_STEP_S = float(os.environ.get("RAMP_STEP_S", "3"))
 
 VISIBLE_FROM = 0.30      # below this, nothing is drawn — still clean air
 
@@ -74,6 +92,29 @@ def set_effects():
     r.raise_for_status()
 
 
+_crossed = set()
+
+
+def _mark_crossing(room, volts):
+    """Record the instant smoke crosses the threshold, once per fire.
+
+    This is the start of the clock for response-time measurement. Without a
+    marker written by the INJECTOR, response time has to be inferred from when
+    the agent happened to notice — which measures the agent's sampling, not the
+    system's response, and flatters whichever configuration samples faster.
+    """
+    above = volts >= rooms.SMOKE_THRESHOLD
+    if above and room not in _crossed:
+        _crossed.add(room)
+        pi_guard.latest_run()
+        pi_guard.audit({"source": "injector", "kind": "threshold_crossed",
+                        "room": room, "smoke_v": volts,
+                        "threshold": rooms.SMOKE_THRESHOLD})
+        print(f"  ^ crossed {rooms.SMOKE_THRESHOLD} V — clock started")
+    elif not above:
+        _crossed.discard(room)
+
+
 def set_smoke(room, volts):
     """Two separate things, deliberately kept apart:
 
@@ -94,6 +135,9 @@ def ramp(room):
     """Rise from clean air to full fire, so the agent sees a trend and not a
     jump. i/steps is simply the fraction of the way through."""
     steps = int(RAMP_S / RAMP_STEP_S)
+    print(f"ramp over {RAMP_S:.0f}s in {steps} steps of {RAMP_STEP_S:.0f}s; "
+          f"crosses the 1.0 V threshold at about "
+          f"{RAMP_S * (1.0 - CLEAN_AIR_V) / (FIRE_V - CLEAN_AIR_V):.0f}s")
     for i in range(steps + 1):
         set_smoke(room, CLEAN_AIR_V + (FIRE_V - CLEAN_AIR_V) * (i / steps))
         time.sleep(RAMP_STEP_S)

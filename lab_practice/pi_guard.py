@@ -269,7 +269,11 @@ def apply(building, action, snapshot, source="llm"):
 
     record.update(applied=True, code=None, detail=reason,
                   room=room, actuator=actuator, state=state,
-                  physical=rooms.is_real(room, actuator))
+                  physical=rooms.is_real(room, actuator),
+                  # How stale the perception was when the action landed. This
+                  # is the number that distinguishes architectures: the broker
+                  # costs milliseconds, the SAMPLING costs seconds.
+                  reading_age_s=round(time.time() - snapshot.get("read_at", 0), 2))
     audit(record)
     print(f"  [applied] {room}/{actuator} -> {state}"
           f"{'' if rooms.is_real(room, actuator) else '  (virtual)'}"
@@ -313,6 +317,47 @@ def summarise(path=None):
     except OSError:
         pass
     return counts
+
+
+def response_times(path=None):
+    """Seconds from smoke crossing the threshold to that room's alarm sounding.
+
+    Reads the injector's marker and the first applied buzzer-on after it. Pairs
+    them per room, so two fires in one run give two measurements.
+
+    This is the end-to-end number — sensing, transport, queueing, inference,
+    guarding and switching, all of it. Comparing it between AGENT_IO=direct and
+    AGENT_IO=bus is what measures the architecture rather than the model.
+    """
+    path = path or AUDIT_PATH
+    pending, results = {}, []
+    try:
+        with open(path, encoding="utf-8") as fh:
+            for line in fh:
+                try:
+                    rec = json.loads(line)
+                except ValueError:
+                    continue
+                ts = rec.get("ts")
+                if not ts:
+                    continue
+                when = datetime.fromisoformat(ts).timestamp()
+
+                if rec.get("kind") == "threshold_crossed":
+                    pending[rec.get("room")] = when
+                elif (rec.get("applied") and rec.get("actuator") == "buzzer"
+                      and rec.get("state") == "on"):
+                    room = rec.get("room")
+                    if room in pending:
+                        results.append({
+                            "room": room,
+                            "seconds": round(when - pending.pop(room), 1),
+                            "reading_age_s": rec.get("reading_age_s"),
+                            "physical": rec.get("physical"),
+                        })
+    except OSError:
+        pass
+    return {"responses": results, "never_responded": sorted(pending)}
 
 
 if __name__ == "__main__":

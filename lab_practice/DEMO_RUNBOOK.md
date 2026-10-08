@@ -214,19 +214,20 @@ python3 pi_consumer.py
 # 5 — the twin bridge
 python3 pi_twin_bridge.py
 
-# 6 — the agent
+
+# 6 — the building response
+python3 evacuate.py
+
+# 7 — runtime verification
+python3 monitor.py
+
+# 8 — the agent, export the api key
 source ~/.llm-env
 export LLM_BASE_URL=https://canopus.eislab.se/v1
 export LLM_MODEL=qwen3.8-27b
 export BAND_LO=24 BAND_HI=25
 export BUILDSIM_URL=http://localhost:9090
 python3 llm_edge_agent.py
-
-# 7 — the building response
-python3 evacuate.py
-
-# 8 — runtime verification
-python3 monitor.py
 
 # 9 — the fire
 python3 inject_fire.py ramp
