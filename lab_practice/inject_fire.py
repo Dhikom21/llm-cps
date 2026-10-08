@@ -49,11 +49,15 @@ FIRE_V      = 3.00
 # noticing. Rule of thumb: the ramp should span at least five of whatever the
 # slowest link is — usually the agent's cycle, not the sensor's.
 #
-#     RAMP_S=20    fast step. Tests reaction to a THRESHOLD being crossed.
+#     RAMP_S=20    (default) fast rise. Tests reaction to a THRESHOLD being
+#                  crossed, and is what the demo wants: the alarm follows
+#                  closely enough that the cause and effect are obvious to
+#                  someone watching.
 #     RAMP_S=180   slow rise. Tests whether a TREND is detected and acted on
-#                  BEFORE the threshold, which is the harder question.
-RAMP_S      = float(os.environ.get("RAMP_S", "180"))
-RAMP_STEP_S = float(os.environ.get("RAMP_STEP_S", "3"))
+#                  BEFORE the threshold — the harder question, and only
+#                  meaningful if the sampling is fast enough to see the climb.
+RAMP_S      = float(os.environ.get("RAMP_S", "20"))
+RAMP_STEP_S = float(os.environ.get("RAMP_STEP_S", "1"))
 
 VISIBLE_FROM = 0.30      # below this, nothing is drawn — still clean air
 
