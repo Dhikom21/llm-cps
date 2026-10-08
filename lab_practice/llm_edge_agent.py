@@ -183,6 +183,54 @@ def run_react(building, snapshot):
                     "snapshot_read_at": snapshot.get("read_at")})
 
 
+# ---------------- acting, in either world ----------------
+def apply_action(building, action, snapshot, source):
+    """Carry out one action, whichever architecture we are running in.
+
+    In BUS mode the agent owns no pins: it asks pi_actuator.py, where the
+    shield runs, and waits for the verdict.
+
+    In DIRECT mode this process holds the pins, so pi_guard runs here instead.
+
+    Without this, the fallback path called building.set_heater() directly —
+    which RemoteBuilding does not have, because the whole point of the split
+    is that the agent cannot drive a pin. The crash only appeared when the
+    model was unreachable, which is exactly when a fallback must work.
+    """
+    room, actuator = rooms.parse_actuator_id(action["actuator"])
+    if room is None:
+        return False, "H1", f"malformed actuator {action.get('actuator')!r}"
+
+    if hasattr(building, "command"):
+        result = building.command(room, actuator, action["state"],
+                                  action["reason"], snapshot)
+        return result.get("applied"), result.get("code"), result.get("detail")
+
+    applied, code, detail = pi_guard.apply(building, action, snapshot,
+                                           source=source)
+    if applied:
+        twin.publish_actuator(room, actuator, action["state"])
+    return applied, code, detail
+
+
+def all_off(building, reason="agent stopping"):
+    """Leave every actuator safe on the way out, in either architecture."""
+    snapshot = {"read_at": time.time(), "rooms": {}}
+    for room in building.rooms():
+        for actuator in ("buzzer", "heater"):      # alarm first
+            if hasattr(building, "command"):
+                try:
+                    building.command(room, actuator, "off", reason, snapshot)
+                except Exception:
+                    pass        # the actuator's own fail-safe is the backstop
+            else:
+                if actuator == "heater":
+                    building.set_heater(room, False)
+                else:
+                    building.set_buzzer(room, False)
+                twin.publish_actuator(room, actuator, "off")
+
+
 # ---------------- fallback ----------------
 def run_fallback(building, snapshot):
     """The baseline rule, when the model is unreachable or unusable.
@@ -193,11 +241,10 @@ def run_fallback(building, snapshot):
     """
     for room, data in snapshot["rooms"].items():
         for action in edge_agent_rules.decide(room, data, building.state(room)):
-            applied, _, _ = pi_guard.apply(building, action, snapshot,
-                                           source="rule")
-            if applied:
-                _, actuator = rooms.parse_actuator_id(action["actuator"])
-                twin.publish_actuator(room, actuator, action["state"])
+            applied, code, detail = apply_action(building, action, snapshot,
+                                                 source="rule")
+            if not applied and code not in (None, "NOOP"):
+                print(f"  [fallback {code}] {detail}")
 
 
 # ---------------- perception ----------------
@@ -335,10 +382,8 @@ try:
 
         time.sleep(CYCLE_S)
 finally:
-    for room in building.rooms():
-        building.set_buzzer(room, False)
-        building.set_heater(room, False)
-        twin.publish_actuator(room, "heater", "off")
-        twin.publish_actuator(room, "buzzer", "off")
+    all_off(building)
+    if hasattr(building, "close"):
+        building.close()
     print("\nstopped — all heaters off, all alarms off")
     print("audit summary:", json.dumps(pi_guard.summarise()))

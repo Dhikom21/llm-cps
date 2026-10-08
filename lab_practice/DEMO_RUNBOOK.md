@@ -219,6 +219,7 @@ source ~/.llm-env
 export LLM_BASE_URL=https://canopus.eislab.se/v1
 export LLM_MODEL=qwen3.8-27b
 export BAND_LO=24 BAND_HI=25
+export BUILDSIM_URL=http://localhost:9090
 python3 llm_edge_agent.py
 
 # 7 — the building response
