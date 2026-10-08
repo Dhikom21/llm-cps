@@ -39,7 +39,9 @@ import time
 import bus
 import rooms
 
-if os.environ.get("HW", "real") == "fake":
+SIMULATED = os.environ.get("HW", "real") == "fake"
+
+if SIMULATED:
     import fake_hardware as hw
 else:
     import real_hardware as hw
@@ -63,6 +65,41 @@ def main():
     print(f"sensor process: {rooms.names()} every {PERIOD_S}s -> "
           f"{bus.MQTT_HOST}:{bus.MQTT_PORT}")
     print("(the twin is fed by pi_twin_bridge.py, not from here)")
+
+    # ------------------------------------------------------------------
+    # Closing the loop when the hardware is simulated
+    # ------------------------------------------------------------------
+    # With real hardware the ROOM is the plant: the relay heats the air, the
+    # air warms the DS18B20, and the feedback path is physical. Nothing in
+    # software has to connect the two.
+    #
+    # With HW=fake the plant is the thermal model inside this process — and
+    # it lives in a DIFFERENT process from the one holding the actuators. Its
+    # _Room.heater would stay False forever, so the simulated temperature
+    # would drift to OUTDOOR no matter what the agent commanded, and the
+    # control loop would be silently open. The run would look like a failed
+    # controller when it is really a disconnected simulation.
+    #
+    # So in simulated mode only, this process listens to the retained
+    # actuator state topics and applies them to its own model. That is the
+    # software stand-in for the physical path from relay to air to sensor.
+    # In real mode this subscription is not just unnecessary but wrong: the
+    # temperature must come from the sensor, not from what we commanded.
+    if SIMULATED:
+        def on_state(topic, payload):
+            room = payload.get("room")
+            actuator = payload.get("actuator")
+            if room not in rooms.ROOMS:
+                return
+            on = payload.get("state") == "on"
+            if actuator == "heater":
+                sensors.set_heater(room, on)
+            elif actuator == "buzzer":
+                sensors.set_buzzer(room, on)
+
+        link.subscribe(bus.ALL_STATES, on_state)
+        print("HW=fake: thermal model driven by actuators/# "
+              "(simulated plant, real control path)")
 
     last = {}
     try:

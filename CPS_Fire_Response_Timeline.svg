@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 650" font-family="Segoe UI, Arial, sans-serif">
+<style>
+.ttl{font-size:19px;font-weight:700;fill:#0f2d54}
+.h2{font-size:15px;font-weight:700;fill:#0f2d54}
+.sub{font-size:12.5px;fill:#5b6b7a}
+.ax{font-size:11.5px;fill:#5b6b7a}
+.lb{font-size:12px;fill:#263238}
+.b{font-weight:700}
+</style>
+<text x="590.0" y="32" text-anchor="middle" class="ttl">Fire response — what the agent could see, and when it acted</text>
+<text x="590.0" y="54" text-anchor="middle" class="sub">Room A109 · bus architecture · qwen3.8-27b · time measured from the moment smoke crossed 1.0 V</text>
+<rect x="322.2840000000001" y="96" width="427.65599999999995" height="238" fill="#fdecee"/>
+<line x1="96" y1="334.0" x2="1134" y2="334.0" stroke="#e6ebf0"/>
+<text x="84" y="338.0" text-anchor="end" class="ax">0.0</text>
+<line x1="96" y1="262.95522388059703" x2="1134" y2="262.95522388059703" stroke="#e6ebf0"/>
+<text x="84" y="266.95522388059703" text-anchor="end" class="ax">1.0</text>
+<line x1="96" y1="191.91044776119404" x2="1134" y2="191.91044776119404" stroke="#e6ebf0"/>
+<text x="84" y="195.91044776119404" text-anchor="end" class="ax">2.0</text>
+<line x1="96" y1="120.86567164179104" x2="1134" y2="120.86567164179104" stroke="#e6ebf0"/>
+<text x="84" y="124.86567164179104" text-anchor="end" class="ax">3.0</text>
+<text x="158.28" y="354" text-anchor="middle" class="ax">-8s</text>
+<text x="262.08000000000004" y="354" text-anchor="middle" class="ax">-3s</text>
+<text x="365.88" y="354" text-anchor="middle" class="ax">+2s</text>
+<text x="469.68" y="354" text-anchor="middle" class="ax">+7s</text>
+<text x="573.48" y="354" text-anchor="middle" class="ax">+12s</text>
+<text x="677.2800000000001" y="354" text-anchor="middle" class="ax">+17s</text>
+<text x="781.08" y="354" text-anchor="middle" class="ax">+22s</text>
+<text x="884.88" y="354" text-anchor="middle" class="ax">+27s</text>
+<text x="988.68" y="354" text-anchor="middle" class="ax">+32s</text>
+<text x="1092.48" y="354" text-anchor="middle" class="ax">+37s</text>
+<line x1="96" y1="334" x2="1134" y2="334" stroke="#90a4ae"/>
+<line x1="96" y1="96" x2="96" y2="334" stroke="#90a4ae"/>
+<text x="34" y="215.0" class="ax" text-anchor="middle" transform="rotate(-90 34 215.0)">smoke level (V)</text>
+<text x="590.0" y="376" text-anchor="middle" class="ax">time relative to the threshold being crossed</text>
+<text x="536.1120000000001" y="84" text-anchor="middle" class="lb b" fill="#c62828">20.6 s above the threshold with no alarm</text>
+<line x1="96" y1="262.95522388059703" x2="1134" y2="262.95522388059703" stroke="#c62828" stroke-width="2" stroke-dasharray="7 4"/>
+<text x="102" y="254.95522388059703" class="lb" fill="#c62828">alarm threshold 1.0 V</text>
+<line x1="322.2840000000001" y1="96" x2="322.2840000000001" y2="334" stroke="#c62828" stroke-width="2"/>
+<line x1="749.94" y1="96" x2="749.94" y2="334" stroke="#1b7f4c" stroke-width="2.6"/>
+<text x="313.2840000000001" y="215.0" text-anchor="middle" class="lb b" fill="#c62828" transform="rotate(-90 313.2840000000001 215.0)">smoke crosses 1.0 V</text>
+<text x="758.94" y="112" class="lb b" fill="#1b7f4c">BUZZER ON · heater off</text>
+<polyline points="222.6,326.9 359.7,296.0 496.7,223.9 635.8,162.1 770.7,120.9 907.7,120.9 1046.8,326.9" fill="none" stroke="#1a5fb4" stroke-width="2.8"/>
+<circle cx="222.63599999999988" cy="326.8955223880597" r="3.2" fill="#1a5fb4"/>
+<circle cx="359.65200000000004" cy="295.9910447761194" r="3.2" fill="#1a5fb4"/>
+<circle cx="496.66799999999995" cy="223.88059701492537" r="3.2" fill="#1a5fb4"/>
+<circle cx="635.76" cy="162.0716417910448" r="3.2" fill="#1a5fb4"/>
+<circle cx="770.7" cy="120.86567164179104" r="3.2" fill="#1a5fb4"/>
+<circle cx="907.7159999999999" cy="120.86567164179104" r="3.2" fill="#1a5fb4"/>
+<circle cx="1046.808" cy="326.8955223880597" r="3.2" fill="#1a5fb4"/>
+<text x="500.82" y="312.6865671641791" class="lb" fill="#1a5fb4">actual smoke, published every 6.6 s</text>
+<circle cx="407.4" cy="295.9910447761194" r="10" fill="#ffffff" stroke="#c75b00" stroke-width="3.2"/>
+<circle cx="749.94" cy="162.0716417910448" r="10" fill="#ffffff" stroke="#c75b00" stroke-width="3.2"/>
+<text x="114.68399999999997" y="115.1820895522388" class="lb b" fill="#c75b00">agent looks at +4.1 s</text>
+<text x="114.68399999999997" y="133.1820895522388" class="lb" fill="#c75b00">sees 0.54 V — its reading</text>
+<text x="114.68399999999997" y="151.1820895522388" class="lb" fill="#c75b00">was 4.6 s old, from before</text>
+<text x="114.68399999999997" y="169.1820895522388" class="lb" fill="#c75b00">the smoke rose. No action.</text>
+<path d="M122.68399999999997,179.1820895522388 C134.68399999999997,206.11940298507463 345.12,255.85074626865674 396.4,290.9910447761194" fill="none" stroke="#c75b00" stroke-width="1.3"/>
+<text x="793.536" y="275.7432835820896" class="lb b" fill="#c75b00">agent looks at +20.6 s</text>
+<text x="793.536" y="293.7432835820896" class="lb" fill="#c75b00">sees 2.42 V — already</text>
+<text x="793.536" y="311.7432835820896" class="lb" fill="#c75b00">near the peak. Acts.</text>
+<path d="M807.536,261.7432835820896 C801.84,220.32835820895522 781.08,184.8059701492537 760.94,159.0716417910448" fill="none" stroke="#c75b00" stroke-width="1.3"/>
+<text x="96" y="428" class="h2">Where the 20.6 seconds went</text>
+<rect x="96" y="448" width="332.5631067961165" height="44" fill="#1a5fb4"/>
+<text x="262.28155339805824" y="475" text-anchor="middle" class="lb b" fill="#ffffff">6.6s</text>
+<rect x="428.5631067961165" y="448" width="231.78640776699024" height="44" fill="#6aa3dd"/>
+<text x="544.4563106796115" y="475" text-anchor="middle" class="lb b" fill="#ffffff">4.6s</text>
+<rect x="660.3495145631067" y="448" width="372.873786407767" height="44" fill="#c75b00"/>
+<text x="846.7864077669902" y="475" text-anchor="middle" class="lb b" fill="#ffffff">7.4s</text>
+<rect x="1033.2233009708737" y="448" width="100.7766990291262" height="44" fill="#1b7f4c"/>
+<text x="1083.6116504854367" y="475" text-anchor="middle" class="lb b" fill="#ffffff">2.0s</text>
+<line x1="262.28155339805824" y1="494" x2="262.28155339805824" y2="501" stroke="#1a5fb4"/>
+<text x="262.28155339805824" y="512" text-anchor="middle" class="ax" fill="#1a5fb4">waiting for the next sensor publish</text>
+<line x1="544.4563106796115" y1="494" x2="544.4563106796115" y2="519" stroke="#6aa3dd"/>
+<text x="544.4563106796115" y="530" text-anchor="middle" class="ax" fill="#6aa3dd">reading already stale when used</text>
+<line x1="846.7864077669902" y1="494" x2="846.7864077669902" y2="501" stroke="#c75b00"/>
+<text x="846.7864077669902" y="512" text-anchor="middle" class="ax" fill="#c75b00">waiting for the next agent cycle</text>
+<line x1="1083.6116504854367" y1="494" x2="1083.6116504854367" y2="519" stroke="#1b7f4c"/>
+<text x="1083.6116504854367" y="530" text-anchor="middle" class="ax" fill="#1b7f4c">model inference</text>
+<text x="96" y="570" class="lb b">The model accounts for 10% of the delay. The other 90% is how often the system looks.</text>
+<text x="96" y="590" class="ax">Sensor period 5 s plus 1.5 s of DS18B20 conversion = 6.6 s actual · agent cycle 10 s · inference median 2.0 s</text>
+<text x="96" y="609" class="ax">The agent never observed the fire below 2.42 V, so it could not have reacted to the rise — only to the peak.</text>
+</svg>

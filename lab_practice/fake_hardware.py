@@ -36,11 +36,25 @@ SMOKE_LOCAL = os.environ.get("SMOKE_LOCAL", "0") == "1"
 
 class _Room:
     """A crude thermal model. Enough to exercise a controller, and honest
-    about being nothing more: no walls, no neighbours, no weather."""
+    about being nothing more: no walls, no neighbours, no weather.
 
-    WARM_TARGET = 25.0     # where it settles with the heater on
-    OUTDOOR     = 18.0     # where it drifts with the heater off
-    APPROACH    = 0.2      # fraction of the remaining gap closed per 2 s
+    The three constants are the simulated PLANT, not the controller, and are
+    environment-tunable because the defaults are not room-like. APPROACH=0.2
+    per 2 s is a time constant of 10 seconds — the same order as the agent's
+    own cycle. When the plant is as fast as the sampling, the sampling
+    dominates: the room overshoots several degrees each way and the trace
+    says more about how often the agent looks than about control quality.
+
+    A real room has a time constant of minutes. For a comfort run, something
+    like APPROACH=0.016 (tau ~ 125 s), WARM_TARGET=26, OUTDOOR=20 behaves
+    like a room and leaves the sampling effect visible but not dominant.
+    Whatever is used must be reported alongside the result: these numbers
+    shape the measured behaviour as much as the controller does.
+    """
+
+    WARM_TARGET = float(os.environ.get("WARM_TARGET", "25.0"))
+    OUTDOOR     = float(os.environ.get("OUTDOOR", "18.0"))
+    APPROACH    = float(os.environ.get("APPROACH", "0.2"))
 
     def __init__(self, start_temp):
         self.temp = start_temp

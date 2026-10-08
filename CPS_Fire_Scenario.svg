@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 480" font-family="Segoe UI, Arial, sans-serif">
+<style>
+.ttl{font-size:22px;font-weight:700;fill:#0f2d54}
+.sub{font-size:14px;fill:#5b6b7a}
+.ax{font-size:13px;fill:#5b6b7a}
+.lb{font-size:14px;fill:#263238}
+.big{font-size:15px;font-weight:700}
+</style>
+<text x="560.0" y="38" text-anchor="middle" class="ttl">Room A109 — smoke burned for 21 seconds before the buzzer sounded</text>
+<text x="560.0" y="62" text-anchor="middle" class="sub">BUS mode (sensor, agent and actuator as separate processes over MQTT) · 8 October · alarm threshold 1.0 V</text>
+<rect x="277.15652173913054" y="112" width="442.45217391304334" height="220" fill="#fbdcdf"/>
+<text x="498.3826086956522" y="98" text-anchor="middle" class="big" fill="#c62828">21 seconds, alarm silent</text>
+<line x1="86" y1="332.0" x2="1074" y2="332.0" stroke="#e6ebf0"/>
+<text x="76" y="337.0" text-anchor="end" class="ax">0.0</text>
+<line x1="86" y1="267.29411764705884" x2="1074" y2="267.29411764705884" stroke="#e6ebf0"/>
+<text x="76" y="272.29411764705884" text-anchor="end" class="ax">1.0</text>
+<line x1="86" y1="202.58823529411765" x2="1074" y2="202.58823529411765" stroke="#e6ebf0"/>
+<text x="76" y="207.58823529411765" text-anchor="end" class="ax">2.0</text>
+<line x1="86" y1="137.88235294117646" x2="1074" y2="137.88235294117646" stroke="#e6ebf0"/>
+<text x="76" y="142.88235294117646" text-anchor="end" class="ax">3.0</text>
+<text x="107.47826086956522" y="356" text-anchor="middle" class="ax">-8s</text>
+<text x="214.8695652173913" y="356" text-anchor="middle" class="ax">-3s</text>
+<text x="322.2608695652174" y="356" text-anchor="middle" class="ax">+2s</text>
+<text x="429.65217391304344" y="356" text-anchor="middle" class="ax">+7s</text>
+<text x="537.0434782608695" y="356" text-anchor="middle" class="ax">+12s</text>
+<text x="644.4347826086956" y="356" text-anchor="middle" class="ax">+17s</text>
+<text x="751.8260869565217" y="356" text-anchor="middle" class="ax">+22s</text>
+<text x="859.2173913043479" y="356" text-anchor="middle" class="ax">+27s</text>
+<text x="966.6086956521739" y="356" text-anchor="middle" class="ax">+32s</text>
+<text x="1074.0" y="356" text-anchor="middle" class="ax">+37s</text>
+<line x1="86" y1="332" x2="1074" y2="332" stroke="#90a4ae"/>
+<text x="30" y="222.0" class="ax" text-anchor="middle" transform="rotate(-90 30 222.0)">smoke (V)</text>
+<line x1="86" y1="267.29411764705884" x2="1074" y2="267.29411764705884" stroke="#c62828" stroke-width="2.5" stroke-dasharray="8 5"/>
+<text x="94" y="257.29411764705884" class="big" fill="#c62828">alarm threshold 1.0 V</text>
+<polyline points="174.1,325.5 315.8,297.4 457.6,231.7 601.5,175.4 741.1,137.9 882.8,137.9 1026.7,325.5" fill="none" stroke="#1a5fb4" stroke-width="3.5"/>
+<text x="945.1304347826086" y="296.4117647058823" text-anchor="middle" class="big" fill="#1a5fb4">smoke level</text>
+<line x1="277.15652173913054" y1="112" x2="277.15652173913054" y2="332" stroke="#c62828" stroke-width="2.5"/>
+<line x1="719.6086956521739" y1="112" x2="719.6086956521739" y2="332" stroke="#1b7f4c" stroke-width="3"/>
+<text x="267.15652173913054" y="128" text-anchor="end" class="big" fill="#c62828">smoke passes 1.0 V</text>
+<text x="729.6086956521739" y="218.76470588235293" class="big" fill="#1b7f4c">BUZZER ON</text>
+<text x="729.6086956521739" y="233.6470588235294" class="lb" fill="#1b7f4c">smoke already at 2.4 V</text>
+<text x="86" y="402" class="big" fill="#0f2d54">Of those 21 seconds, only 2 were the language model thinking.</text>
+<text x="86" y="426" class="lb">The other 19 were waiting: 7 s for the sensor to publish, 5 s because the reading used was already old, 7 s until the next agent cycle.</text>
+<text x="86" y="448" class="lb">The alarm was late because the system looks rarely, not because the model is slow. The comfort figure is from a direct-mode run, not this one.</text>
+</svg>
