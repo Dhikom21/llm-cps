@@ -201,6 +201,7 @@ cd ~/D7065E/buildingsim
 nohup ./bin/buildsim start --all-interfaces --port 9090 > ~/buildsim.log 2>&1 &
 
 cd ~/llm-cps/lab_practice
+export BUILDSIM_URL=http://localhost:9090
 
 # 2 — the pins (BEFORE the agent: it publishes retained states the agent reads)
 python3 pi_actuator.py
@@ -223,7 +224,9 @@ python3 monitor.py
 
 # 8 — the agent, export the api key
 source ~/.llm-env
+cd ~/llm-cps/lab_practice
 export LLM_BASE_URL=https://canopus.eislab.se/v1
+export LLM_API_KEY=sk-4dZ8L1Z0xPBxd8dB1GF6vA
 export LLM_MODEL=qwen3.8-27b
 export BAND_LO=24 BAND_HI=25
 export BUILDSIM_URL=http://localhost:9090

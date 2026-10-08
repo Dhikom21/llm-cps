@@ -129,6 +129,7 @@ def set_smoke(room, volts):
     _active[room] = volts
     set_effects()
     print(f"{room}: smoke = {volts:.3f} V")
+    _mark_crossing(room, volts)
 
 
 def ramp(room):
