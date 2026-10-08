@@ -1,0 +1,5 @@
+# audit  runs/tempcomfort-bus-llm.jsonl
+# bands  A108 (25.0, 26.0), A109 (25.0, 26.0)
+{
+  "error": "no applied heater commands in runs/tempcomfort-bus-llm.jsonl"
+}
