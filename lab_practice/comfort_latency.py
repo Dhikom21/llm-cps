@@ -107,46 +107,122 @@ def crossings(rows, window=None):
     return out, initial
 
 
-def heater_commands(path):
-    """Applied heater commands from the audit, oldest first.
+def _records(paths):
+    for path in paths:
+        try:
+            with open(path, encoding="utf-8") as fh:
+                for line in fh:
+                    try:
+                        yield json.loads(line)
+                    except ValueError:
+                        continue
+        except OSError:
+            continue
+
+
+def heater_commands(paths):
+    """Applied heater commands, oldest first, from one or more audit files.
+
+    Which file holds them depends on the architecture, which is why this
+    takes a list. In DIRECT mode the agent calls pi_guard itself and the
+    applied record lands in the agent's own audit. In BUS mode the agent only
+    publishes a request; pi_actuator runs the shield and writes the applied
+    record to ITS audit. So a bus run's agent file contains tool calls and
+    nothing else, and pointing this at the agent file alone finds no commands
+    at all — which looks like "the model never acted" when the model acted
+    perfectly well.
+
+    Pass every audit file from the run and let this sort it out.
 
     Shutdown commands are dropped: "agent stopping" switches everything off
     regardless of temperature, and pairing one with a crossing would record
     a response that never happened.
     """
     out = []
-    try:
-        with open(path, encoding="utf-8") as fh:
-            for line in fh:
-                try:
-                    rec = json.loads(line)
-                except ValueError:
-                    continue
-                if not (rec.get("applied") and rec.get("actuator") == "heater"):
-                    continue
-                if "stopping" in str(rec.get("detail", "")).lower():
-                    continue
-                ts = rec.get("ts")
-                if not ts:
-                    continue
-                out.append({"at": datetime.fromisoformat(ts).timestamp(),
-                            "room": rec.get("room"),
-                            "state": rec.get("state"),
-                            "reading_age_s": rec.get("reading_age_s"),
-                            "physical": rec.get("physical"),
-                            "detail": rec.get("detail")})
-    except OSError:
-        pass
+    for rec in _records(paths):
+        if not (rec.get("applied") and rec.get("actuator") == "heater"):
+            continue
+        if "stopping" in str(rec.get("detail", "")).lower():
+            continue
+        ts = rec.get("ts")
+        if not ts:
+            continue
+        out.append({"at": datetime.fromisoformat(ts).timestamp(),
+                    "room": rec.get("room"),
+                    "state": rec.get("state"),
+                    "reading_age_s": rec.get("reading_age_s"),
+                    "physical": rec.get("physical"),
+                    "detail": rec.get("detail")})
     return sorted(out, key=lambda r: r["at"])
 
 
-def measure(path, db=DB_PATH):
-    cmds = heater_commands(path)
-    if not cmds:
-        return {"error": f"no applied heater commands in {path}"}
-    window = (cmds[0]["at"] - 300, cmds[-1]["at"] + 300)
+def readings_from_audit(paths):
+    """Rebuild the published reading stream out of the agent's own audit.
 
-    events, initial = crossings(readings(db), window)
+    Every read_sensors record carries `snapshot_read_at` plus a `recent`
+    window whose entries are stamped with `age_s`, so each published reading
+    can be recovered as (snapshot_read_at - age_s). Successive cycles overlap,
+    hence the dict: the same publish is seen several times and must collapse
+    to one entry.
+
+    This is a fallback for when the SQLite file was not kept. It is strictly
+    worse than the database — it only covers what happened to be inside the
+    trend window at each cycle, so early readings and anything dropped before
+    the first cycle are missing — but it is enough to locate band crossings,
+    and it comes from the same stream the agent actually saw.
+    """
+    seen = {}
+    for rec in _records(paths):
+        if rec.get("tool") != "read_sensors":
+            continue
+        base = rec.get("snapshot_read_at")
+        if not base:
+            continue
+        for room, d in (rec.get("result") or {}).items():
+            if not isinstance(d, dict):
+                continue
+            for r in d.get("recent") or []:
+                if r.get("age_s") is None or r.get("temp_c") is None:
+                    continue
+                seen[(round(base - r["age_s"], 0), room)] = r["temp_c"]
+    return sorted((ts, room, temp) for (ts, room), temp in seen.items())
+
+
+def measure(paths, db=DB_PATH):
+    if isinstance(paths, str):
+        paths = [paths]
+    cmds = heater_commands(paths)
+    if not cmds:
+        return {"error": "no applied heater commands in " + ", ".join(paths),
+                "hint": "in bus mode these live in the ACTUATOR audit, not "
+                        "the agent's — pass both files"}
+    # Scope to the AGENT's session, not to the span of the commands.
+    #
+    # pi_actuator keeps one audit open for as long as the process lives, so a
+    # single actuator file routinely covers several agent runs — including
+    # earlier attempts made under a different BAND_LO/BAND_HI. Taking the
+    # window from the commands would stretch it across all of them and then
+    # judge those older readings against the band that happens to be in the
+    # environment now, inventing crossings that the agent of the time was
+    # never asked to respond to. The agent's own audit is session-scoped, so
+    # when one is supplied it defines the window.
+    agent_ts = [datetime.fromisoformat(r["ts"]).timestamp()
+                for r in _records(paths) if r.get("tool") and r.get("ts")]
+    if agent_ts:
+        window = (min(agent_ts) - 60, max(agent_ts) + 60)
+        scope = "agent session"
+    else:
+        window = (cmds[0]["at"] - 300, cmds[-1]["at"] + 300)
+        scope = "span of applied commands (no agent audit supplied)"
+    cmds = [c for c in cmds if window[0] <= c["at"] <= window[1]]
+
+    if db and os.path.exists(db):
+        rows, source = readings(db), db
+    else:
+        rows, source = readings_from_audit(paths), "reconstructed from audit"
+        print(f"# note: {db} not found, rebuilding the reading stream from "
+              f"the audit's recent windows", file=sys.stderr)
+    events, initial = crossings(rows, window)
     used, results, missed = set(), [], []
 
     for ev in events:
@@ -174,8 +250,11 @@ def measure(path, db=DB_PATH):
 
     secs = sorted(r["seconds"] for r in results)
     return {
-        "audit": path,
-        "database": db,
+        "audit": paths,
+        "readings_from": source,
+        "window": scope,
+        "window_utc": [datetime.utcfromtimestamp(window[0]).strftime("%H:%M:%S"),
+                       datetime.utcfromtimestamp(window[1]).strftime("%H:%M:%S")],
         "responses": results,
         "no_command": missed,
         "at_startup_not_a_crossing": initial,
@@ -188,7 +267,7 @@ def measure(path, db=DB_PATH):
 
 
 if __name__ == "__main__":
-    audit = sys.argv[1] if len(sys.argv) > 1 else pi_guard.latest_run()
-    print(f"# audit  {audit}")
-    print(f"# bands  " + ", ".join(f"{r} {rooms.band(r)}" for r in rooms.names()))
-    print(json.dumps(measure(audit), indent=2))
+    audits = sys.argv[1:] or [pi_guard.latest_run()]
+    print("# audits " + ", ".join(audits))
+    print("# bands  " + ", ".join(f"{r} {rooms.band(r)}" for r in rooms.names()))
+    print(json.dumps(measure(audits), indent=2))

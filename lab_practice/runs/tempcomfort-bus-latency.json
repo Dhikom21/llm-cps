@@ -1,5 +1,75 @@
-# audit  runs/tempcomfort-bus-llm.jsonl
+# audits runs/tempcomfort-bus-llm.jsonl, runs/tempcomfort-bus-actuator.jsonl
 # bands  A108 (25.0, 26.0), A109 (25.0, 26.0)
 {
-  "error": "no applied heater commands in runs/tempcomfort-bus-llm.jsonl"
+  "audit": [
+    "runs/tempcomfort-bus-llm.jsonl",
+    "runs/tempcomfort-bus-actuator.jsonl"
+  ],
+  "readings_from": "runs/tempcomfort-bus-readings.sqlite",
+  "window": "agent session",
+  "window_utc": [
+    "13:45:38",
+    "13:51:35"
+  ],
+  "responses": [
+    {
+      "room": "A109",
+      "crossed": "low -> high",
+      "temp_c": 26.12,
+      "commanded": "off",
+      "seconds": 12.8,
+      "reading_age_s": 4.64,
+      "cycles": 1.3,
+      "physical": true
+    },
+    {
+      "room": "A108",
+      "crossed": "in -> high",
+      "temp_c": 26.94,
+      "commanded": "off",
+      "seconds": 6.1,
+      "reading_age_s": 4.59,
+      "cycles": 0.6,
+      "physical": false
+    },
+    {
+      "room": "A109",
+      "crossed": "in -> low",
+      "temp_c": 24.88,
+      "commanded": "on",
+      "seconds": 9.4,
+      "reading_age_s": 3.27,
+      "cycles": 0.9,
+      "physical": true
+    },
+    {
+      "room": "A108",
+      "crossed": "in -> low",
+      "temp_c": 24.75,
+      "commanded": "on",
+      "seconds": 11.6,
+      "reading_age_s": 4.3,
+      "cycles": 1.2,
+      "physical": false
+    }
+  ],
+  "no_command": [],
+  "at_startup_not_a_crossing": [
+    {
+      "room": "A108",
+      "at": 1791467140.323916,
+      "temp_c": 24.19,
+      "wanted": "on"
+    },
+    {
+      "room": "A109",
+      "at": 1791467140.323916,
+      "temp_c": 24.06,
+      "wanted": "on"
+    }
+  ],
+  "median_s": 11.6,
+  "worst_s": 12.8,
+  "excluded_sensor_period_s": 5.0,
+  "note": "Clock starts at the first out-of-band PUBLISH, so up to 5.0s of sensing delay is not counted."
 }

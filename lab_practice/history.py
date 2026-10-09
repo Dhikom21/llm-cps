@@ -175,13 +175,57 @@ def window(room, n=None, max_age_s=None):
             for ts, t, s in rows]
 
 
+def trend_of(rows):
+    """The slope of exactly the readings handed in — nothing re-queried.
+
+    This exists so the number the model is given and the list the model is
+    shown cannot disagree.
+
+    They used to. `recent` returned at most WINDOW_N readings (about 35 s of
+    coverage) while `trend` re-queried the whole TREND_WINDOW_S of 180 s, and
+    the two were placed side by side in one payload with nothing saying they
+    covered different spans. During a fire that gap mattered enormously: the
+    smoke ramp lasted 20 s inside a 178 s window that was otherwise flat, so
+    the published slope came out at 0.0163 V/s when the same six readings in
+    `recent` gave 0.0876 V/s and the true ramp was 0.145 V/s. The model was
+    handed a precomputed number five times worse than the list beside it, and
+    no field told it the two were measured differently.
+
+    Deriving the slope from the shown rows makes the payload checkable: if the
+    model does the arithmetic itself it gets our answer. `rows` are window()'s
+    output, oldest first, carrying age_s rather than a timestamp.
+    """
+    usable = [r for r in rows if r.get("age_s") is not None]
+    if len(usable) < 2:
+        return {"temp_c_per_s": None, "smoke_v_per_s": None,
+                "samples": len(usable), "window_s": 0.0,
+                "from": "the readings listed in `recent`"}
+
+    span = usable[0]["age_s"] - usable[-1]["age_s"]   # oldest minus newest
+    if span <= 0:
+        return {"temp_c_per_s": None, "smoke_v_per_s": None,
+                "samples": len(usable), "window_s": 0.0,
+                "from": "the readings listed in `recent`"}
+
+    def rate(key):
+        a, b = usable[0].get(key), usable[-1].get(key)
+        if a is None or b is None:
+            return None
+        return round((b - a) / span, 4)
+
+    return {"temp_c_per_s": rate("temp_c"), "smoke_v_per_s": rate("smoke_v"),
+            "samples": len(usable), "window_s": round(span, 1),
+            "from": "the readings listed in `recent`"}
+
+
 def trend(room, seconds=None):
     """Change per second over the last `seconds`, as a plain number.
 
-    Computed here rather than left for the model to infer from the series. Both
-    are given: the arithmetic is cheap and reliable in Python and unreliable in
-    a 3B model, and including it lets the experiments separate "could not see
-    the trend" from "saw it and ignored it".
+    This is the LONG view, and it is kept for temperature. A room drifts over
+    minutes and the DS18B20 quantises in 0.0625 degree steps, so a slope taken
+    over the half-minute in `recent` is mostly quantisation noise. Smoke is the
+    opposite case — see trend_of() for why a long window ruins it — which is
+    why both are now published, each naming its own window.
     """
     seconds = TREND_WINDOW_S if seconds is None else seconds
     cutoff = time.time() - seconds
@@ -203,7 +247,8 @@ def trend(room, seconds=None):
         return round((b - a) / span, 4)
 
     return {"temp_c_per_s": rate(1), "smoke_v_per_s": rate(2),
-            "samples": len(rows), "span_s": round(span, 1)}
+            "samples": len(rows), "window_s": round(span, 1),
+            "from": f"every reading in the last {seconds:.0f}s"}
 
 
 # ---------------- read path 2: the model's tool ----------------
