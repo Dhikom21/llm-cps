@@ -1,0 +1,120 @@
+[io] bus mode — readings from pi_sensor.py, commands to pi_actuator.py
+[twin] registered A108, A109 at http://localhost:9090
+LLM agent on ['A108', 'A109']: model=qwen3.8-27b at https://canopus.eislab.se/v1
+tool-calling, max 5 hops/cycle, cycle=10.0s, history=pi_readings.sqlite, audit=runs/run-20261009-140516-llm.jsonl. Ctrl-C to stop.
+staleness limit 60s, trend window 180s
+
+=== cycle 1 14:05:16
+    A108: n/a C, smoke 0.10 V (+0.000 V/s), heater=off, buzzer=off
+    A109: n/a C, smoke 0.10 V (+0.000 V/s), heater=off, buzzer=off
+  [action] read_sensors({})
+  [observ] {"A108": {"room": "A108", "temp_c": null, "smoke_v": 0.1, "comfort_band": [24.0, 25.0], "smoke_threshold": 1.0, "recent": [{"age_s": 38.7, "temp_c": 23.25, "smoke_v": 0.1}, {"age_s
+  [action] query_history({"sql": "SELECT ts, temp_c, smoke_v FROM readings WHERE temp_c IS NULL ORDER BY ts DESC LIMIT 10"})
+  [observ] {"columns": ["ts", "temp_c", "smoke_v"], "rows": [], "row_count": 0, "truncated": false}
+  [action] query_history({"sql": "SELECT room, ts, temp_c, smoke_v FROM readings ORDER BY ts DESC LIMIT 6"})
+  [observ] {"columns": ["room", "ts", "temp_c", "smoke_v"], "rows": [["A108", 1791547518.3620715, 23.25, 0.1], ["A109", 1791547518.3620715, 23.25, 0.1], ["A108", 1791547511.769179, 23.25, 0.1
+  [action] turn_on({"actuator": "A108/heater", "reason": "A108 latest temp 23.25C (5.7s old, flat for 180s) is below comfort band low end 24.0C; smoke 0.1V bel)
+  [observ] {"cmd_id": "a6b08b5cee7a49529141c4b94a414b45", "applied": true, "code": null, "detail": "A108 latest temp 23.25C (5.7s old, flat for 180s) is below comfort band low end 24.0C; smok
+  [action] turn_on({"actuator": "A109/heater", "reason": "A109 latest temp 23.25C (5.7s old, flat for 180s) is below comfort band low end 24.0C; smoke 0.1V bel)
+  [observ] {"cmd_id": "d5eda111fc9b4381bb39e7cc71a17d2b", "applied": true, "code": null, "detail": "A109 latest temp 23.25C (5.7s old, flat for 180s) is below comfort band low end 24.0C; smok
+  [thought] Both rooms are smoke-safe (0.1V) and at 23.25°C, below the 24.0°C band floor, so I turned on both heaters.
+  [llm 8.0s]
+
+=== cycle 2 14:05:35
+    A108: 23.25 C, smoke 0.10 V (+0.000 V/s), heater=on, buzzer=off
+    A109: 23.25 C, smoke 0.10 V (+0.000 V/s), heater=on, buzzer=off
+  [action] read_sensors({})
+  [observ] {"A108": {"room": "A108", "temp_c": 23.25, "smoke_v": 0.1, "comfort_band": [24.0, 25.0], "smoke_threshold": 1.0, "recent": [{"age_s": 36.9, "temp_c": 23.25, "smoke_v": 0.1}, {"age_
+  [thought] Both rooms are safe (smoke 0.1 V) and at 23.25 °C below the 24.0 °C band, with heaters already on — no changes needed.
+  [llm 1.4s]
+
+=== cycle 3 14:05:46
+    A108: 23.25 C, smoke 0.10 V (+0.000 V/s), heater=on, buzzer=off
+    A109: 23.25 C, smoke 0.24 V (+0.001 V/s), heater=on, buzzer=off
+  [action] read_sensors({})
+  [observ] {"A108": {"room": "A108", "temp_c": 23.25, "smoke_v": 0.1, "comfort_band": [24.0, 25.0], "smoke_threshold": 1.0, "recent": [{"age_s": 35.1, "temp_c": 23.25, "smoke_v": 0.1}, {"age_
+  [thought] Both rooms are safe (smoke 0.10 and 0.245 V, well under the 1.0 V threshold) and both heaters are already on with temps at 23.25 °C below the 24.0 °C band, so no actuator changes are needed this cycle
+  [llm 4.8s]
+
+=== cycle 4 14:06:01
+    A108: 23.25 C, smoke 0.10 V (+0.000 V/s), heater=on, buzzer=off
+    A109: 23.25 C, smoke 2.13 V (+0.012 V/s), heater=on, buzzer=off
+  [action] read_sensors({})
+  [observ] {"A108": {"room": "A108", "temp_c": 23.25, "smoke_v": 0.1, "comfort_band": [24.0, 25.0], "smoke_threshold": 1.0, "recent": [{"age_s": 36.6, "temp_c": 23.25, "smoke_v": 0.1}, {"age_
+  [action] turn_on({"actuator": "A109/buzzer", "reason": "A109 smoke_v 2.13 is at/above threshold 1.0; safety requires buzzer on"})
+  [observ] {"cmd_id": "4dfb4430a5654bc0b7e464105dba643f", "applied": true, "code": null, "detail": "A109 smoke_v 2.13 is at/above threshold 1.0; safety requires buzzer on", "room": "A109", "a
+  [action] turn_off({"actuator": "A109/heater", "reason": "A109 smoke_v 2.13 is at/above threshold 1.0; safety requires heater off"})
+  [observ] {"cmd_id": "9d25465b2bf046ef92916581a6f805e9", "applied": true, "code": null, "detail": "A109 smoke_v 2.13 is at/above threshold 1.0; safety requires heater off", "room": "A109", "
+  [action] create_alert({"severity": "critical", "room": "A109", "message": "Smoke in A109: smoke_v rose from 0.1 to 2.13 in ~33s, well above threshold 1.0. Buzzer )
+  [observ] {"raised": true}
+  [thought] A109 smoke at 2.13 V (threshold 1.0): buzzer on, heater off, critical alert raised; A108 is safe and its heater is already on for its 23.25 °C.
+  [llm 4.2s]
+
+=== cycle 5 14:06:15
+    A108: 23.19 C, smoke 0.10 V (+0.000 V/s), heater=on, buzzer=off
+    A109: 23.25 C, smoke 3.00 V (+0.017 V/s), heater=off, buzzer=on
+  [action] read_sensors({})
+  [observ] {"A108": {"room": "A108", "temp_c": 23.19, "smoke_v": 0.1, "comfort_band": [24.0, 25.0], "smoke_threshold": 1.0, "recent": [{"age_s": 37.6, "temp_c": 23.25, "smoke_v": 0.1}, {"age_
+  [thought] A109's smoke is at 3.0 V, well above its 1.0 V threshold, but its buzzer is already on and heater already off, so no actuator change is needed. Raising an alert for the operator.
+  [action] create_alert({"severity": "critical", "room": "A109", "message": "Smoke in A109 at 3.0 V, far above the 1.0 V threshold; it rose from 0.1 V to 3.0 V over)
+  [observ] {"raised": true}
+  [thought] A109's smoke (3.0 V) is above its 1.0 V threshold with buzzer already on and heater already off, so I raised a critical alert; A108 is below its comfort band with its heater already on, so no actuator
+  [llm 5.1s]
+
+=== cycle 6 14:06:30
+    A108: 23.25 C, smoke 0.10 V (+0.000 V/s), heater=on, buzzer=off
+    A109: 23.25 C, smoke 0.10 V (+0.000 V/s), heater=off, buzzer=on
+  [action] read_sensors({})
+  [observ] {"A108": {"room": "A108", "temp_c": 23.25, "smoke_v": 0.1, "comfort_band": [24.0, 25.0], "smoke_threshold": 1.0, "recent": [{"age_s": 39.6, "temp_c": 23.25, "smoke_v": 0.1}, {"age_
+  [action] turn_on({"actuator": "A109/heater", "reason": "A109 temp 23.25C is below comfort low 24.0C and current smoke 0.1V is below threshold 1.0V, so comfor)
+  [observ] {"cmd_id": "227f86febf29444db69f50bc586719f8", "applied": true, "code": null, "detail": "A109 temp 23.25C is below comfort low 24.0C and current smoke 0.1V is below threshold 1.0V,
+  [action] turn_off({"actuator": "A109/buzzer", "reason": "A109 current smoke 0.1V is below threshold 1.0V; the 3.0V readings were 13-26s old and have cleared"})
+  [observ] {"cmd_id": "087c4852cb064358a3c405e8f06d606b", "applied": true, "code": null, "detail": "A109 current smoke 0.1V is below threshold 1.0V; the 3.0V readings were 13-26s old and have
+  [action] create_alert({"room": "A109", "severity": "info", "message": "A109 smoke sensor spiked to 3.0V (3x threshold) about 15-25s ago, now back to clean-air 0.1)
+  [observ] {"raised": true}
+  [thought] A108 is safe and its heater is already on for the 23.25C reading; A109's smoke spike has cleared to 0.1V, so I turned its buzzer off and heater on for the 23.25C reading, and raised an info alert abou
+  [llm 22.3s]
+
+=== cycle 7 14:07:02
+    A108: 23.25 C, smoke 0.10 V (+0.000 V/s), heater=on, buzzer=off
+    A109: 23.25 C, smoke 0.10 V (+0.000 V/s), heater=on, buzzer=off
+  [action] read_sensors({})
+  [observ] {"A108": {"room": "A108", "temp_c": 23.25, "smoke_v": 0.1, "comfort_band": [24.0, 25.0], "smoke_threshold": 1.0, "recent": [{"age_s": 38.8, "temp_c": 23.25, "smoke_v": 0.1}, {"age_
+  [thought] Both rooms are safe (smoke 0.1 V) and below the 24.0 °C comfort floor with heaters already on, so no actuator changes are needed.
+  [llm 1.4s]
+
+=== cycle 8 14:07:14
+    A108: 23.25 C, smoke 0.10 V (+0.000 V/s), heater=on, buzzer=off
+    A109: 23.25 C, smoke 0.10 V (+0.000 V/s), heater=on, buzzer=off
+  [action] read_sensors({})
+  [observ] {"A108": {"room": "A108", "temp_c": 23.25, "smoke_v": 0.1, "comfort_band": [24.0, 25.0], "smoke_threshold": 1.0, "recent": [{"age_s": 37.0, "temp_c": 23.25, "smoke_v": 0.1}, {"age_
+  [thought] Both rooms are safe (smoke 0.1 V) and at 23.25 °C below the 24–25 °C band with heaters already on, so no actuator changes are needed.
+  [llm 1.4s]
+
+=== cycle 9 14:07:25
+    A108: 23.31 C, smoke 0.10 V (+0.000 V/s), heater=on, buzzer=off
+    A109: 23.31 C, smoke 0.10 V (+0.000 V/s), heater=on, buzzer=off
+  [action] read_sensors({})
+  [observ] {"A108": {"room": "A108", "temp_c": 23.31, "smoke_v": 0.1, "comfort_band": [24.0, 25.0], "smoke_threshold": 1.0, "recent": [{"age_s": 35.2, "temp_c": 23.31, "smoke_v": 0.1}, {"age_
+  [thought] Both rooms are safe (smoke 0.1 V) and at 23.31 °C below the 24.0 °C band floor, with heaters already on — no changes needed.
+  [llm 1.4s]
+
+=== cycle 10 14:07:37
+    A108: 23.31 C, smoke 0.10 V (+0.000 V/s), heater=on, buzzer=off
+    A109: 23.31 C, smoke 0.10 V (+0.000 V/s), heater=on, buzzer=off
+  [action] read_sensors({})
+  [observ] {"A108": {"room": "A108", "temp_c": 23.31, "smoke_v": 0.1, "comfort_band": [24.0, 25.0], "smoke_threshold": 1.0, "recent": [{"age_s": 40.0, "temp_c": 23.25, "smoke_v": 0.1}, {"age_
+  [thought] Both rooms are safe (smoke 0.1 V) and below the 24.0 °C comfort floor at 23.31 °C with heaters already on, so no actuator changes are needed.
+  [llm 1.4s]
+
+=== cycle 11 14:07:48
+    A108: 23.31 C, smoke 0.10 V (+0.000 V/s), heater=on, buzzer=off
+    A109: 23.31 C, smoke 0.10 V (+0.000 V/s), heater=on, buzzer=off
+  [action] read_sensors({})
+  [observ] {"A108": {"room": "A108", "temp_c": 23.31, "smoke_v": 0.1, "comfort_band": [24.0, 25.0], "smoke_threshold": 1.0, "recent": [{"age_s": 38.2, "temp_c": 23.25, "smoke_v": 0.1}, {"age_
+  [thought] Both rooms are safe (smoke 0.1 V) and at 23.31 °C below the 24.0 °C band floor, with heaters already on — no changes needed.
+  [llm 1.4s]
+
+=== cycle 12 14:07:59
+    A108: 23.31 C, smoke 0.10 V (+0.000 V/s), heater=on, buzzer=off
+    A109: 23.31 C, smoke 0.10 V (+0.000 V/s), heater=on, buzzer=off

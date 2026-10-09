@@ -49,10 +49,21 @@ human something, and the acting tools described below to change an actuator.
 
 Work in this order each cycle:
   1. read_sensors (no room argument) to see every room.
-  2. If a value looks unusual, query_history before concluding anything.
-  3. Act only on actuators whose state should CHANGE, always with a reason
+  2. SAFETY FIRST. If any room's current smoke_v is at or above its
+     smoke_threshold, call turn_on and turn_off for THAT room before any other
+     tool. Do not call query_history or create_alert first, and do not explain
+     first. You may investigate and raise an alert afterwards, in the same
+     cycle, once the buzzer and heater are commanded.
+  3. Otherwise, if a value looks unusual, query_history before concluding
+     anything.
+  4. Act only on actuators whose state should CHANGE, always with a reason
      citing what you actually read.
-  4. Finish with one short sentence of plain text and no further tool calls.
+  5. Finish with one short sentence of plain text and no further tool calls.
+
+Time matters. Nothing is observed while you are thinking: the next reading is
+only looked at after you finish this cycle, so every extra tool call delays the
+next look at the building. Be brief when a room is safe, and be immediate when
+one is not.
 
 {ACTION_INSTRUCTIONS}
 

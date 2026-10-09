@@ -162,14 +162,24 @@ ACTION_TOOLS = {"turn_on", "turn_off"}
 
 
 def _sensors_for(building, room):
+    # One query, two views. `recent` is the list and `trend_recent` is its
+    # slope, so the model can check our arithmetic against the rows it can
+    # see. `trend_long` is the separate, slower picture — useful for
+    # temperature, misleading for smoke — and says so in its own `from` field.
+    #
+    # These were previously two independent queries over different spans,
+    # presented side by side with nothing distinguishing them. See
+    # history.trend_of() for what that cost during a fire.
+    recent = history.window(room)
     return {
         "room": room,
         "temp_c": building.read_temperature(room),
         "smoke_v": building.read_smoke(room),
         "comfort_band": list(rooms.band(room)),
         "smoke_threshold": rooms.SMOKE_THRESHOLD,
-        "recent": history.window(room),
-        "trend": history.trend(room),
+        "recent": recent,
+        "trend_recent": history.trend_of(recent),
+        "trend_long": history.trend(room),
         **building.state(room),
     }
 

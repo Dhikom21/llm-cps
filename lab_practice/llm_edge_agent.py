@@ -353,7 +353,11 @@ try:
         print(f"\n=== cycle {cycle} {time.strftime('%H:%M:%S')}")
         for room, d in snapshot["rooms"].items():
             t = "n/a" if d["temp_c"] is None else f"{d['temp_c']:.2f}"
-            rate = d["trend"].get("smoke_v_per_s")
+            # trend_recent, because the console should show the same slope
+            # the model is asked to act on. Falls back to the old key so an
+            # audit file or a snapshot recorded before the split still prints.
+            rate = (d.get("trend_recent") or d.get("trend")
+                    or {}).get("smoke_v_per_s")
             print(f"    {room}: {t} C, smoke {d['smoke_v']:.2f} V"
                   f"{'' if rate is None else f' ({rate:+.3f} V/s)'}, "
                   f"heater={d['heater']}, buzzer={d['buzzer']}")
